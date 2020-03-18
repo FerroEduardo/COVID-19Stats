@@ -7,6 +7,12 @@ verify_ssl = true
 
 [packages]
 selenium = "*"
+plotly = "*"
+numpy = "*"
+pandas = "*"
+seaborn = "*"
+requests = "*"
+lxml = "*"
 
 [requires]
 python_version = "3.6"
