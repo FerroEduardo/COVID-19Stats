@@ -191,6 +191,11 @@ def main():
     print("[LOG]Página carregada.")
     try:
         print("[LOG]Aguardando elementos da página serem carregados...")
+        manutencao = WebDriverWait(driver, 15).until_not(
+            EC.text_to_be_present_in_element_value((By.XPATH, '//*[@id="BRCardSuspects"]'), "Em manutenção!")
+        )
+        if manutencao:
+            raise Exception("Site em manutenção, tente novamente mais tarde.")
         WebDriverWait(driver, 120).until(
             EC.text_to_be_present_in_element((By.XPATH, '//*[@id="BRCardSuspects"]'), "%")
         )
@@ -541,11 +546,16 @@ def main():
                 compararCasosSuspeitosEntrePaíses(nomePais1, nomePais2, worldStats)
                 opcao = input("Deseja continuar?(sim/nao) ")
 
+    except Exception as exc:
+        print("[ERROR]{0}".format(exc))
+
     finally:
         driver.quit()
         try:
-            os.remove(brasilcsv)
-            os.remove(worldcsv)
+            if os.path.exists(brasilcsv):
+                os.remove(brasilcsv)
+            if os.path.exists(worldcsv):
+                os.remove(worldcsv)
         except Exception as exc:
             print("[ERROR]{0}".format(exc))
 
