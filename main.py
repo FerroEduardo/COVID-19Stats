@@ -1,9 +1,11 @@
 import os
+import sys
 import csv
 import time
 import json
 import datetime
 import requests
+import traceback
 import plotly.graph_objects as go
 
 from lxml import html
@@ -32,73 +34,142 @@ def obterNomeEstadoPorCodigo(codigo):
 
 
 def obterCodigoEstadoPorNome(estado):
-    with open("./recursos/estados.csv", newline="") as csvfile:
-        reader = csv.DictReader(csvfile, delimiter=";")
-        for state in reader:
-            if state["Unidade_Federativa"].lower() == estado.strip().lower():
-                return state["Codigo"]
+    try:
+        with open("./recursos/estados.csv", newline="") as csvfile:
+            reader = csv.DictReader(csvfile, delimiter=";")
+            for state in reader:
+                if state["Unidade_Federativa"].lower() == estado.strip().lower():
+                    return state["Codigo"]
+    except Exception as exc:
+        print("[ERROR]" + exc)
+
+
+def obterSiglaPaisPorNome(nomePais):
+    try:
+        with open("./recursos/paises.csv", newline="") as csvfile:
+            reader = csv.DictReader(csvfile, delimiter=";")
+            for pais in reader:
+                if pais["Nome"] != None and nomePais.strip().lower() in pais["Nome"].lower():
+                    return pais["Sigla"]
+    except Exception as exc:
+        exc_info = sys.exc_info()
+        traceback.print_exception(*exc_info)
+        del exc_info
+
+
+def obterNomePaisPorSigla(siglaPais):
+    try:
+        with open("./recursos/paises.csv", newline="") as csvfile:
+            reader = csv.DictReader(csvfile, delimiter=";")
+            for pais in reader:
+                if pais["Sigla"].lower() == siglaPais.strip().lower():
+                    return pais["Nome"]
+    except Exception as exc:
+        print("[ERROR]" + exc)
 
 
 def abrirGraficoDoPaisPorNome(nomeDoPais, stats):
-    re = requests.get("https://restcountries.eu/rest/v2/name/" + nomeDoPais)
-    if "status" in re.text:
-        return
-    codigoDoPais = re.json()[0]["alpha2Code"]
-    i = 0
-    for key in stats:
-        if str(codigoDoPais).lower() in str(key).lower():
-            # https://restcountries.eu/
-            req = requests.get("https://restcountries.eu/rest/v2/alpha?codes=" + key)
-            # print(req.json())
-            countryName = req.json()[0]["translations"]["br"]
-            # print(key, stats[key])
-            i += 1
-            fig = go.Figure()
-            fig.add_trace(go.Bar(y=stats[key][1], x=stats[key][0], name="Casos Confirmados", text=stats[key][5]))
-            fig.add_trace(go.Bar(y=stats[key][2], x=stats[key][0], name="Novos Casos Confirmados"))
-            fig.add_trace(go.Bar(y=stats[key][3], x=stats[key][0], name="Mortes"))
-            fig.add_trace(go.Bar(y=stats[key][4], x=stats[key][0], name="Novas Mortes"))
-            fig.update_layout(title='Estatística de casos do COVID-19 em ' + countryName,
-                              xaxis_title='Data',
-                              yaxis_title='Casos',
-                              template="plotly")
-            fig.show()
+    try:
+        siglaDoPais = obterSiglaPaisPorNome(nomeDoPais)
+        for key in stats:
+            if str(siglaDoPais).lower() in str(key).lower():
+                # https://restcountries.eu/
+                # req = requests.get("https://restcountries.eu/rest/v2/alpha?codes=" + key)
+                # print(req.json())
+                # nomePais = obterNomePaisPorSigla(siglaDoPais)
+                # print(key, stats[key])
+                fig = go.Figure()
+                fig.add_trace(go.Bar(y=stats[key][1], x=stats[key][0], name="Casos Confirmados", text=stats[key][5]))
+                fig.add_trace(go.Bar(y=stats[key][2], x=stats[key][0], name="Novos Casos Confirmados"))
+                fig.add_trace(go.Bar(y=stats[key][3], x=stats[key][0], name="Mortes"))
+                fig.add_trace(go.Bar(y=stats[key][4], x=stats[key][0], name="Novas Mortes"))
+                fig.update_layout(title='Estatística de casos do COVID-19 em ' + nomeDoPais,
+                                  xaxis_title='Data',
+                                  yaxis_title='Casos',
+                                  template="plotly")
+                fig.show()
+    except Exception as exc:
+        exc_info = sys.exc_info()
+        traceback.print_exception(*exc_info)
+        del exc_info
 
 
 def abrirGraficoDoEstadoPorNome(nomeDoEstado, stats):
-    codigoEstado = obterCodigoEstadoPorNome(nomeDoEstado)
-    for key in stats:
-        if codigoEstado.lower() == str(key).lower():
-            fig = go.Figure()
-            fig.add_trace(go.Bar(y=stats[key][1], x=stats[key][0], name="Casos Suspeitos", text=stats[key][5]))
-            fig.add_trace(go.Bar(y=stats[key][3], x=stats[key][0], name="Casos Confirmados"))
-            fig.add_trace(go.Bar(y=stats[key][4], x=stats[key][0], name="Mortes"))
-            fig.add_trace(go.Bar(y=stats[key][2], x=stats[key][0], name="Casos Descartados"))
-            fig.update_layout(title='Estatística de casos do COVID-19 em ' + nomeDoEstado,
-                              xaxis_title='Data',
-                              yaxis_title='Casos',
-                              template="plotly")
-            fig.show()
+    try:
+        codigoEstado = obterCodigoEstadoPorNome(nomeDoEstado)
+        for key in stats:
+            if codigoEstado.lower() == str(key).lower():
+                fig = go.Figure()
+                fig.add_trace(go.Bar(y=stats[key][1], x=stats[key][0], name="Casos Suspeitos", text=stats[key][5]))
+                fig.add_trace(go.Bar(y=stats[key][3], x=stats[key][0], name="Casos Confirmados"))
+                fig.add_trace(go.Bar(y=stats[key][4], x=stats[key][0], name="Mortes"))
+                fig.add_trace(go.Bar(y=stats[key][2], x=stats[key][0], name="Casos Descartados"))
+                fig.update_layout(title='Estatística de casos do COVID-19 em ' + nomeDoEstado,
+                                  xaxis_title='Data',
+                                  yaxis_title='Casos',
+                                  template="plotly")
+                fig.show()
+    except Exception as exc:
+        print("[ERROR]" + exc)
 
 
-def compararCasosSuspeitos(nomeDoEstado1, nomeDoEstado2, stats):
-    codigoEstado1 = obterCodigoEstadoPorNome(nomeDoEstado1)
-    codigoEstado2 = obterCodigoEstadoPorNome(nomeDoEstado2)
-    fig = go.Figure()
-    for key in stats:
-        if codigoEstado1.lower() == str(key).lower():
-            fig.add_trace(go.Bar(y=stats[key][1], x=stats[key][0], name="Casos Suspeitos(" + nomeDoEstado1 + ")"))
-            fig.add_trace(go.Bar(y=stats[key][3], x=stats[key][0], name="Casos Confirmados(" + nomeDoEstado1 + ")"))
-        elif codigoEstado2.lower() == str(key).lower():
-            fig.add_trace(go.Bar(y=stats[key][1], x=stats[key][0], name="Casos Suspeitos(" + nomeDoEstado2 + ")"))
-            fig.add_trace(go.Bar(y=stats[key][3], x=stats[key][0], name="Casos Confirmados(" + nomeDoEstado2 + ")"))
+def compararCasosSuspeitosEntreEstados(nomeDoEstado1, nomeDoEstado2, stats):
+    try:
+        codigoEstado1 = obterCodigoEstadoPorNome(nomeDoEstado1)
+        codigoEstado2 = obterCodigoEstadoPorNome(nomeDoEstado2)
 
-    fig.update_layout(
-        title='Estatística de casos do COVID-19 entre os estados do 🇧🇷🇧🇷🇧🇷Brasil: ' + nomeDoEstado1 + " e " + nomeDoEstado2,
-        xaxis_title='Data',
-        yaxis_title='Casos',
-        template="plotly")
-    fig.show()
+        if codigoEstado1 == None or codigoEstado2 == None:
+            print("Nome do estado é inválido.")
+            return
+
+        fig = go.Figure()
+        for key in stats:
+            if codigoEstado1.lower() == str(key).lower():
+                fig.add_trace(go.Bar(y=stats[key][1], x=stats[key][0], name="Casos Suspeitos(" + nomeDoEstado1 + ")"))
+                fig.add_trace(go.Bar(y=stats[key][3], x=stats[key][0], name="Casos Confirmados(" + nomeDoEstado1 + ")"))
+            elif codigoEstado2.lower() == str(key).lower():
+                fig.add_trace(go.Bar(y=stats[key][1], x=stats[key][0], name="Casos Suspeitos(" + nomeDoEstado2 + ")"))
+                fig.add_trace(go.Bar(y=stats[key][3], x=stats[key][0], name="Casos Confirmados(" + nomeDoEstado2 + ")"))
+
+        fig.update_layout(
+            title='Estatística de casos do COVID-19 entre os estados do Brasil: ' + nomeDoEstado1 + " e " + nomeDoEstado2,
+            xaxis_title='Data',
+            yaxis_title='Casos',
+            template="plotly")
+        fig.show()
+    except Exception as exc:
+        print("[ERROR]" + exc)
+
+
+def compararCasosSuspeitosEntrePaíses(nomeDoPais1, nomeDoPais2, stats):
+    try:
+        #recebe nome e passa para sigla para ler do arquivo(que esta na sigla do pais)
+        siglaPais1 = obterSiglaPaisPorNome(nomeDoPais1)
+        siglaPais2 = obterSiglaPaisPorNome(nomeDoPais2)
+        nomeDoPais1 = obterNomePaisPorSigla(siglaPais1)
+        nomeDoPais2 = obterNomePaisPorSigla(siglaPais2)
+
+        if siglaPais1 == None or siglaPais2 == None or nomeDoPais1 == None or nomeDoPais2 == None:
+            print("Nome do pais é inválido.")
+            return
+
+        fig = go.Figure()
+        for key in stats:
+            if key.lower() in siglaPais1.lower():
+                fig.add_trace(go.Bar(y=stats[key][1], x=stats[key][0], name="Casos Suspeitos(" + nomeDoPais1 + ")"))
+                fig.add_trace(go.Bar(y=stats[key][3], x=stats[key][0], name="Casos Confirmados(" + nomeDoPais1 + ")"))
+            elif key.lower() in siglaPais2.lower():
+                fig.add_trace(go.Bar(y=stats[key][1], x=stats[key][0], name="Casos Suspeitos(" + nomeDoPais2 + ")"))
+                fig.add_trace(go.Bar(y=stats[key][3], x=stats[key][0], name="Casos Confirmados(" + nomeDoPais2 + ")"))
+
+        fig.update_layout(
+            title='Estatística de casos do COVID-19 entre os países: ' + nomeDoPais1 + " e " + nomeDoPais2,
+            xaxis_title='Data',
+            yaxis_title='Casos',
+            template="plotly")
+        fig.show()
+    except Exception as exc:
+        print("[ERROR]" + exc)
 
 
 def main():
@@ -193,7 +264,7 @@ def main():
 
         jsonBody = json.loads(body[13:])
 
-        stats = dict()
+        worldStats = dict()
         brazilStats = dict()
 
         for key in jsonBody:
@@ -201,67 +272,67 @@ def main():
                 for value in jsonBody[key]:
                     for country in value['values']:
 
-                        if stats.get(country["uid"]):
+                        if worldStats.get(country["uid"]):
 
-                            stats[country["uid"]][0].append(value["date"] + " , " + value["time"])
+                            worldStats[country["uid"]][0].append(value["date"] + " , " + value["time"])
 
                             if country.get("cases"):
-                                stats[country["uid"]][1].append(country["cases"])
+                                worldStats[country["uid"]][1].append(country["cases"])
 
                             if country.get("casesNew"):
-                                stats[country["uid"]][2].append(country['casesNew'])
+                                worldStats[country["uid"]][2].append(country['casesNew'])
                             else:
-                                stats[country["uid"]][2].append(0)
+                                worldStats[country["uid"]][2].append(0)
 
                             if country.get('deaths'):
-                                stats[country["uid"]][3].append(country['deaths'])
+                                worldStats[country["uid"]][3].append(country['deaths'])
                             else:
-                                stats[country["uid"]][3].append(0)
+                                worldStats[country["uid"]][3].append(0)
 
                             if country.get('deathsNew'):
-                                stats[country["uid"]][4].append(country['deathsNew'])
+                                worldStats[country["uid"]][4].append(country['deathsNew'])
                             else:
-                                stats[country["uid"]][4].append(0)
+                                worldStats[country["uid"]][4].append(0)
 
                             if country.get('comments'):
-                                if len(stats[country["uid"]]) == 5:
-                                    stats[country["uid"]].append([country['comments']])
+                                if len(worldStats[country["uid"]]) == 5:
+                                    worldStats[country["uid"]].append([country['comments']])
                                 else:
                                     # ver se está certo
-                                    stats[country["uid"]][5].append([country['comments']])
+                                    worldStats[country["uid"]][5].append([country['comments']])
                             else:
-                                if len(stats[country["uid"]]) == 5:
-                                    stats[country["uid"]].append([""])
+                                if len(worldStats[country["uid"]]) == 5:
+                                    worldStats[country["uid"]].append([""])
                                 else:
-                                    stats[country["uid"]][5].append("")
+                                    worldStats[country["uid"]][5].append("")
 
                         else:
-                            stats[country["uid"]] = []
+                            worldStats[country["uid"]] = []
 
-                            stats[country["uid"]].append([value["date"] + " , " + value["time"]])
+                            worldStats[country["uid"]].append([value["date"] + " , " + value["time"]])
 
                             if country.get("cases"):
-                                stats[country["uid"]].append([country.get("cases")])
+                                worldStats[country["uid"]].append([country.get("cases")])
 
                             if country.get("casesNew"):
-                                stats[country["uid"]].append([country['casesNew']])
+                                worldStats[country["uid"]].append([country['casesNew']])
                             else:
-                                stats[country["uid"]].append(["0"])
+                                worldStats[country["uid"]].append(["0"])
 
                             if country.get('deaths'):
-                                stats[country["uid"]].append([country['deaths']])
+                                worldStats[country["uid"]].append([country['deaths']])
                             else:
-                                stats[country["uid"]].append([0])
+                                worldStats[country["uid"]].append([0])
 
                             if country.get('deathsNew'):
-                                stats[country["uid"]].append([country['deathsNew']])
+                                worldStats[country["uid"]].append([country['deathsNew']])
                             else:
-                                stats[country["uid"]].append([0])
+                                worldStats[country["uid"]].append([0])
 
                             if country.get('comments'):
-                                stats[country["uid"]].append([country['comments']])
+                                worldStats[country["uid"]].append([country['comments']])
                             else:
-                                stats[country["uid"]].append([""])
+                                worldStats[country["uid"]].append([""])
             else:
                 for value in jsonBody[key]:
                     for state in value["values"]:
@@ -282,6 +353,8 @@ def main():
 
                             if state.get('confirmado'):
                                 brazilStats[state["uid"]][3].append(state['confirmado'])
+                            elif state.get('cases'):
+                                brazilStats[state["uid"]][3].append(state['cases'])
                             else:
                                 brazilStats[state["uid"]][3].append(0)
 
@@ -318,6 +391,8 @@ def main():
 
                             if state.get('confirmado'):
                                 brazilStats[state["uid"]].append([state['confirmado']])
+                            elif state.get('cases'):
+                                brazilStats[state["uid"]].append([state['cases']])
                             else:
                                 brazilStats[state["uid"]].append([0])
 
@@ -331,12 +406,12 @@ def main():
                             else:
                                 brazilStats[state["uid"]].append([""])
 
-        option = input("Você deseja verificar as estatísticas de estados?(sim/nao/todos) ")
+        opcao = input("Você deseja verificar as estatísticas de estados?(sim/nao/todos) ")
         while True:
-            if option.lower() == "nao":
+            if opcao.lower() == "nao":
                 break
 
-            elif option.lower() == "todos":
+            elif opcao.lower() == "todos":
                 for estado in estados:
                     if estado["Nome"] is not None and estado["Óbitos"] is not None:
                         print(template.format(estado["Nome"].replace("*", ""),
@@ -377,7 +452,18 @@ def main():
                                 else:
                                     abrirGraficoDoEstadoPorNome(estado["Nome"][:-4], brazilStats)
                 finally:
-                    option = input("Deseja continuar(sim/nao)? ")
+                    opcao = input("Deseja continuar?(sim/nao) ")
+
+        opcao = input("Deseja comparar casos entre dois estados do Brasil?(sim/nao) ")
+        while True:
+            if opcao == "nao":
+                break
+            else:
+                nomeEstado1 = input("Qual o nome do primeiro estado a ser comparado? ")
+                nomeEstado2 = input("Qual o nome do segundo estado a ser comparado? ")
+                compararCasosSuspeitosEntreEstados(nomeEstado1, nomeEstado2, brazilStats)
+                opcao = input("Deseja continuar?(sim/nao) ")
+
 
         print("[LOG]Baixando arquivo de estatística do mundo...")
         driver.find_element_by_xpath('//*[@id="WRcsvByMap"]').click()
@@ -397,7 +483,7 @@ def main():
                 paises.append(pais)
 
         # print(countries)
-        option = input("Deseja verificar estatística de algum país?(sim/nao/todos) ")
+        opcao = input("Deseja verificar estatística de algum país?(sim/nao/todos) ")
         dateStr = driver.find_element_by_xpath('/html/body/div[2]/div[3]/h4/small').text
         dateStr = dateStr.split(" ")
         # Houve um erro de formatação na página que motivou essa correção "desnecessária".
@@ -412,19 +498,19 @@ def main():
             "%d/%m/%y, %H:%M") + " segundo a OMS. Fonte: http://plataforma.saude.gov.br/novocoronavirus/")
 
         while True:
-            if option.lower() == "nao":
+            if opcao.lower() == "nao":
                 break
 
-            elif option.lower() == "todos":
-                # option = input("Você tem certeza que deseja abrir o gráfico de todos os países com casos do COVID-19? São, no total, " + str(len(paises)) + " (sim/nao) ")
-                # if option == "sim":
+            elif opcao.lower() == "todos":
+                # opcao = input("Você tem certeza que deseja abrir o gráfico de todos os países com casos do COVID-19? São, no total, " + str(len(paises)) + " (sim/nao) ")
+                # if opcao == "sim":
                 for pais in paises:
                     if pais["País"] is not None and pais["Óbitos"] is not None:
                         print(templateCountry.format(pais["País"].replace("*", ""),
                                                      pais["Casos confirmados"], pais["% Casos confirmados"],
                                                      pais["Taxa de letalidade******"], pais["Óbitos"]))
                         # abrirGraficoDoPaisPorNome(pais["País"], stats)
-                # elif option == "nao":
+                # elif opcao == "nao":
                 #     print("")
 
                 break
@@ -440,18 +526,30 @@ def main():
                             print(templateCountry.format(pais["País"].replace("*", ""),
                                                          pais["Casos confirmados"], pais["% Casos confirmados"],
                                                          pais["Taxa de letalidade******"], pais["Óbitos"]))
-                            abrirGraficoDoPaisPorNome(pais["País"].replace("*", ""), stats)
+                            abrirGraficoDoPaisPorNome(pais["País"].replace("*", ""), worldStats)
 
                 finally:
-                    option = input("Deseja continuar(sim/nao)? ")
+                    opcao = input("Deseja continuar?(sim/nao) ")
+
+        opcao = input("Deseja comparar casos entre dois países?(sim/nao) ")
+        while True:
+            if opcao == "nao":
+                break
+            else:
+                nomePais1 = input("Qual o nome do primeiro país a ser comparado? ")
+                nomePais2 = input("Qual o nome do segundo país a ser comparado? ")
+                compararCasosSuspeitosEntrePaíses(nomePais1, nomePais2, worldStats)
+                opcao = input("Deseja continuar?(sim/nao) ")
 
     finally:
         driver.quit()
         try:
             os.remove(brasilcsv)
             os.remove(worldcsv)
-        except Exception:
-            print("error deleting files")
+        except Exception as exc:
+            print("[ERROR]"+exc)
+
+        print("Os dados apresentados podem não ser precisos ou estarem incorretos.")
 
 
 if __name__ == '__main__':
