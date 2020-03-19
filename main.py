@@ -41,7 +41,7 @@ def obterCodigoEstadoPorNome(estado):
                 if state["Unidade_Federativa"].lower() == estado.strip().lower():
                     return state["Codigo"]
     except Exception as exc:
-        print("[ERROR]" + exc)
+        print("[ERROR]{0}".format(exc))
 
 
 def obterSiglaPaisPorNome(nomePais):
@@ -65,7 +65,7 @@ def obterNomePaisPorSigla(siglaPais):
                 if pais["Sigla"].lower() == siglaPais.strip().lower():
                     return pais["Nome"]
     except Exception as exc:
-        print("[ERROR]" + exc)
+        print("[ERROR]{0}".format(exc))
 
 
 def abrirGraficoDoPaisPorNome(nomeDoPais, stats):
@@ -110,7 +110,7 @@ def abrirGraficoDoEstadoPorNome(nomeDoEstado, stats):
                                   template="plotly")
                 fig.show()
     except Exception as exc:
-        print("[ERROR]" + exc)
+        print("[ERROR]{0}".format(exc))
 
 
 def compararCasosSuspeitosEntreEstados(nomeDoEstado1, nomeDoEstado2, stats):
@@ -138,7 +138,7 @@ def compararCasosSuspeitosEntreEstados(nomeDoEstado1, nomeDoEstado2, stats):
             template="plotly")
         fig.show()
     except Exception as exc:
-        print("[ERROR]" + exc)
+        print("[ERROR]{0}".format(exc))
 
 
 def compararCasosSuspeitosEntrePaíses(nomeDoPais1, nomeDoPais2, stats):
@@ -169,7 +169,7 @@ def compararCasosSuspeitosEntrePaíses(nomeDoPais1, nomeDoPais2, stats):
             template="plotly")
         fig.show()
     except Exception as exc:
-        print("[ERROR]" + exc)
+        print("[ERROR]{0}".format(exc))
 
 
 def main():
@@ -547,7 +547,7 @@ def main():
             os.remove(brasilcsv)
             os.remove(worldcsv)
         except Exception as exc:
-            print("[ERROR]"+exc)
+            print("[ERROR]{0}".format(exc))
 
         print("Os dados apresentados podem não ser precisos ou estarem incorretos.")
 
