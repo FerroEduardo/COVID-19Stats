@@ -1,31 +1,39 @@
-import os
-import sys
 import csv
-import time
-import json
 import datetime
-import requests
-import traceback
-import plotly.graph_objects as go
-
-from lxml import html
+import json
+import os
+import time
 from pathlib import Path
+
+import plotly.graph_objects as go
+import requests
+from lxml import html
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 def obterNomeEstadoPorUF(uf):
+    """
+    Retorna o nome do estado a partir da sigla do estado
+    :param uf: Código UF do estado
+    :return nomeDoEstado: Nome do estado
+    """
     with open("./recursos/estados.csv", newline="") as csvfile:
         reader = csv.DictReader(csvfile, delimiter=";")
         for state in reader:
             if state["UF"].lower() == uf.lower():
-                return state["Codigo"]
+                return state["Unidade_Federativa"]
 
 
 def obterNomeEstadoPorCodigo(codigo):
+    """
+    Retorna o nome do estado a partir do codigo do estado
+    :param codigo: Código do estado
+    :return nomeDoEstado: Nome do estado
+    """
     with open("./recursos/estados.csv", newline="") as csvfile:
         reader = csv.DictReader(csvfile, delimiter=";")
         for state in reader:
@@ -34,6 +42,11 @@ def obterNomeEstadoPorCodigo(codigo):
 
 
 def obterCodigoEstadoPorNome(estado):
+    """
+    Retorna o codigo do estado a partir do nome do estado
+    :param estado: Nome do estado
+    :return codigoDoEstado: Código do estado
+    """
     try:
         with open("./recursos/estados.csv", newline="") as csvfile:
             reader = csv.DictReader(csvfile, delimiter=";")
@@ -45,6 +58,11 @@ def obterCodigoEstadoPorNome(estado):
 
 
 def obterSiglaPaisPorNome(nomePais):
+    """
+    Retorna a sigla do pais a partir do nome do país
+    :param nomePais: Nome do país
+    :return siglaDoPais: Sigla do país
+    """
     try:
         with open("./recursos/paises.csv", newline="") as csvfile:
             reader = csv.DictReader(csvfile, delimiter=";")
@@ -52,12 +70,15 @@ def obterSiglaPaisPorNome(nomePais):
                 if pais["Nome"] != None and nomePais.strip().lower() in pais["Nome"].lower():
                     return pais["Sigla"]
     except Exception as exc:
-        exc_info = sys.exc_info()
-        traceback.print_exception(*exc_info)
-        del exc_info
+        print("[ERROR]{0}".format(exc))
 
 
 def obterNomePaisPorSigla(siglaPais):
+    """
+    Retorna o nome do país a partir da sigla do país
+    :param siglaPais: Sigla do país
+    :return nomeDoPais: Nome do país
+    """
     try:
         with open("./recursos/paises.csv", newline="") as csvfile:
             reader = csv.DictReader(csvfile, delimiter=";")
@@ -69,6 +90,11 @@ def obterNomePaisPorSigla(siglaPais):
 
 
 def abrirGraficoDoPaisPorNome(nomeDoPais, stats):
+    """
+    Exibe um grafíco com dados do país no navegador padrão
+    :param nomeDoPais: Nome do país
+    :param stats: Variável com estatística dos países
+    """
     try:
         siglaDoPais = obterSiglaPaisPorNome(nomeDoPais)
         for key in stats:
@@ -89,12 +115,15 @@ def abrirGraficoDoPaisPorNome(nomeDoPais, stats):
                                   template="plotly")
                 fig.show()
     except Exception as exc:
-        exc_info = sys.exc_info()
-        traceback.print_exception(*exc_info)
-        del exc_info
+        print("[ERROR]{0}".format(exc))
 
 
 def abrirGraficoDoEstadoPorNome(nomeDoEstado, stats):
+    """
+    Exibe um grafíco com dados do estado no navegador padrão
+    :param nomeDoEstado: Nome do estado
+    :param stats: Variável com as estatística do estado
+    """
     try:
         codigoEstado = obterCodigoEstadoPorNome(nomeDoEstado)
         for key in stats:
@@ -114,6 +143,12 @@ def abrirGraficoDoEstadoPorNome(nomeDoEstado, stats):
 
 
 def compararCasosSuspeitosEntreEstados(nomeDoEstado1, nomeDoEstado2, stats):
+    """
+    Exibe dados comparativos entre os dois estados
+    :param nomeDoEstado1: Nome do estado
+    :param nomeDoEstado2: Nome do estado
+    :param stats: Variável com dados estatísticos dos estados
+    """
     try:
         codigoEstado1 = obterCodigoEstadoPorNome(nomeDoEstado1)
         codigoEstado2 = obterCodigoEstadoPorNome(nomeDoEstado2)
@@ -141,7 +176,13 @@ def compararCasosSuspeitosEntreEstados(nomeDoEstado1, nomeDoEstado2, stats):
         print("[ERROR]{0}".format(exc))
 
 
-def compararCasosSuspeitosEntrePaíses(nomeDoPais1, nomeDoPais2, stats):
+def compararCasosSuspeitosEntrePaises(nomeDoPais1, nomeDoPais2, stats):
+    """
+    Exibe dados comparativos entre os dois países
+    :param nomeDoPais1: Nome do país
+    :param nomeDoPais2: Nome do país
+    :param stats: Variável com dados estatísticos dos países
+    """
     try:
         #recebe nome e passa para sigla para ler do arquivo(que esta na sigla do pais)
         siglaPais1 = obterSiglaPaisPorNome(nomeDoPais1)
@@ -231,6 +272,7 @@ def main():
         regioes = []
         estados = []
 
+        # Aguarda o arquivo ser baixado
         while not os.path.exists(brasilcsv):
             time.sleep(1)
 
@@ -263,6 +305,7 @@ def main():
                                       regiao["Óbitos"], regiao["% Óbitos"]))
 
         print("[LOG]Carregando estatísticas gerais")
+        # Pega um JSON com todos dados estatístisticos disponíveis
         r = requests.get("http://plataforma.saude.gov.br/novocoronavirus/resources/scripts/database.js")
         print("[LOG]Estatísticas carregadas")
         body = html.fromstring(r.content).text_content()
@@ -271,6 +314,15 @@ def main():
 
         worldStats = dict()
         brazilStats = dict()
+
+        # Algoritimo para armazenar o JSON, separando entre variáveis
+        # worldStats armazena dados do mundo
+        # brazilStats armazena dados do brazil
+        # Cada uma dessas variáveis armazena cada tipo de dado em um vetor
+        # Logo, um vetor só de datas(a partir do primeiro caso)
+        # Outro vetor com casos suspeitos
+        # ...
+        # O índice das variáveis é referente a sigla do país ou ao código do estado
 
         for key in jsonBody:
             if key == "world":
@@ -543,7 +595,7 @@ def main():
             else:
                 nomePais1 = input("Qual o nome do primeiro país a ser comparado? ")
                 nomePais2 = input("Qual o nome do segundo país a ser comparado? ")
-                compararCasosSuspeitosEntrePaíses(nomePais1, nomePais2, worldStats)
+                compararCasosSuspeitosEntrePaises(nomePais1, nomePais2, worldStats)
                 opcao = input("Deseja continuar?(sim/nao) ")
 
     except Exception as exc:
