@@ -8,9 +8,9 @@
 
 ![Estados](./imgs/estadosGeral.png)
 
-![Brasil](./imgs/saoPaulo.png)
+![São Paulo](./imgs/saoPaulo.png)
 
-![Brasil](./imgs/rioMinas.png)
+![Rio-Minas](./imgs/rioMinas.png)
 
 
 ## Ambiente de testes
