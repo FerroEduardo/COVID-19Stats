@@ -1,9 +1,11 @@
+import os
 import re
 import csv
+import time
 import shutil
+import requests
 import datetime
 
-import requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
@@ -26,17 +28,46 @@ def obterUFEstadoPorNome(estado):
     except Exception as exc:
         print("[ERROR]{0}".format(exc))
 
+def obterNomeEstadoPorUF(uf):
+    """
+    Retorna o nome do estado a partir da sigla do estado
+    :param uf: Código UF do estado
+    :return nomeDoEstado: Nome do estado
+    """
+    with open("./recursos/estados.csv", newline="") as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=";")
+        for state in reader:
+            if state["UF"].lower() == uf.lower():
+                return state["Unidade_Federativa"]
+
+def obterPrimeiroNomeEstadoPorEntrada(entrada):
+    """
+    Retorna o nome do estado a partir da sigla do estado
+    :param uf: Código UF do estado
+    :return nomeDoEstado: Nome do estado
+    """
+    with open("./recursos/estados.csv", newline="") as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=";")
+        for state in reader:
+            if entrada.lower() in state["Unidade_Federativa"].lower():
+                return state["Unidade_Federativa"]
+
 
 def main():
     url = "https://covid.saude.gov.br/"
+    pastaAtual = os.getcwd()
     profile = webdriver.FirefoxProfile()
+    profile.set_preference('browser.download.folderList', 2)
+    profile.set_preference('browser.download.manager.showWhenStarting', False)
+    profile.set_preference('browser.download.dir', str(os.path.join(pastaAtual, "dados")))
+    profile.set_preference('browser.helperApps.neverAsk.saveToDisk', 'text/csv')
     profile.update_preferences()
     firefox_options = Options()
     firefox_options.headless = True
     driver = webdriver.Firefox(firefox_profile=profile, firefox_options=firefox_options)
     driverversion = driver.capabilities['moz:geckodriverVersion']
     browserversion = driver.capabilities['browserVersion']
-    print("geckodriverVersion: " + driverversion, "browserVersion: " + browserversion)
+    print("[LOG]geckodriverVersion: " + driverversion, "\n[LOG]browserVersion: " + browserversion)
     print("[LOG]Carregando página...")
     driver.get(url=url)
     print("[LOG]Página carregada.")
@@ -84,22 +115,22 @@ def main():
         casos = dict()
         casos["Confirmados"] = driver.find_element_by_xpath(
             '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[2]/div[1]/div/div[1]').text
-        casos["Óbitos"] = driver.find_element_by_xpath(
+        casos["Obitos"] = driver.find_element_by_xpath(
             '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[2]/div[2]/div/div[1]').text
         casos["Letalidade(%)"] = driver.find_element_by_xpath(
-            '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[2]/div[3]/div/div[1]').text[:-1]
+            '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[2]/div[3]/div/div[1]').text[:-1].replace(",", ".")
 
         dateStr = driver.find_element_by_xpath(
             '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[1]/div[2]/div[2]/b').text
         dateStr = dateStr.split(" ")
         hora = int(dateStr[0].split(":")[0])
-        minuto = int((dateStr[0].split(":")[1])[0:1])
+        minuto = int((dateStr[0].split(":")[1]))
         dia = int(dateStr[1].split("/")[0])
         mes = int(dateStr[1].split("/")[1])
         ano = int(dateStr[1].split("/")[2])
         date = datetime.datetime(ano, mes, dia, hora, minuto)
         print("[LOG]Dados gerais extraídos.")
-        print("Dados atualizados " + date.strftime("%d/%m/%y %H:%M") + ". Fonte: " + url)
+        print("Dados atualizados " + date.strftime("%d/%m/%Y %H:%M") + ". Fonte: " + url)
 
         regioes = []
         # Captura dados das regiões da página
@@ -125,7 +156,7 @@ def main():
             dado['Casos'] = driver.find_element_by_xpath(
                 '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[3]/div[2]/div[' + str(
                     i) + ']/div[2]/div[1]').text
-            dado['Porcentagem'] = driver.find_element_by_xpath(
+            dado['PorcentagemDeCasosRelacional'] = driver.find_element_by_xpath(
                 '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[3]/div[2]/div[' + str(
                     i) + ']/div[2]/div[2]').text[:-1]
             regioes.append(dado)
@@ -137,46 +168,62 @@ def main():
         scrollEstados = driver.find_element_by_xpath(
             '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[4]/div[2]')
         driver.execute_script("arguments[0].scrollIntoView()", scrollEstados)
-        for i in range(1, 28):
+        for i in range(2, 29):
             scrollEstados = driver.find_element_by_xpath(
-                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[4]/div[2]/div/div[' + str(
-                    i) + ']')
+                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[4]/div[2]/div/div[' + str(i) + ']')
             driver.execute_script("arguments[0].scrollIntoView()", scrollEstados)
             dado = dict()
             dado['Nome'] = driver.find_element_by_xpath(
-                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[4]/div[2]/div/div[' + str(
-                    i) + ']/div[1]').text
+                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[4]/div[2]/div/div[' + str(i) + ']/div[1]').text
             dado['Casos'] = driver.find_element_by_xpath(
-                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[4]/div[2]/div/div[' + str(
-                    i) + ']/div[2]/b').text
-            dado['Porcentagem'] = float((int(dado['Casos']) / int(casos["Confirmados"].replace(".", ""))) * 100.0)
+                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[4]/div[2]/div/div[' + str(i) + ']/div[2]/div[1]/b').text
+            dado['PorcentagemDeCasosRelacional'] = float((int(dado['Casos']) / int(casos["Confirmados"].replace(".", ""))) * 100.0)
+            dado['Obitos'] = driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[4]/div[2]/div/div['+str(i)+']/div[2]/div[2]/b').text
+            dado['Letalidade'] = driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[4]/div[2]/div/div['+str(i)+']/div[2]/div[3]/b').text
+            if "%" in dado['Letalidade']:
+                dado['Letalidade'] = dado['Letalidade'][:-1].replace(",", ".")
             estados.append(dado)
         print("[LOG]Dados dos estados extraídos.")
 
-        with open("./dados/" + date.strftime("%d-%m-%y--%H-%M") + ".csv", "w", newline="",
+        with open("./dados/" + date.strftime("%d-%m-%Y--%H-%M") + ".csv", "w", newline="",
                   encoding="utf-8") as file:
-            fieldNames = ["Nome", "Casos", "Casos", "Porcentagem"]
+            fieldNames = ["Nome", "Casos", "PorcentagemDeCasosRelacional", "Obitos", "Letalidade", "Atualizado"]
             writer = csv.DictWriter(file,
                                     fieldnames=fieldNames,
                                     delimiter=";",
                                     quotechar='"',
                                     quoting=csv.QUOTE_NONNUMERIC)
             writer.writeheader()
-            writer.writerows(regioes)
+            for regiao in regioes:
+                writer.writerow({"Nome": regiao["Nome"],
+                                 "Casos": regiao["Casos"],
+                                 "PorcentagemDeCasosRelacional": regiao["PorcentagemDeCasosRelacional"],
+                                 "Obitos": "",
+                                 "Letalidade": "",
+                                 "Atualizado": ""
+                                 })
             for estado in estados:
                 nome = estado["Nome"] + "(" + obterUFEstadoPorNome(estado["Nome"]) + ")"
                 writer.writerow({"Nome": nome,
                                  "Casos": estado["Casos"],
-                                 "Porcentagem": "{:.5f}".format(estado["Porcentagem"])})
+                                 "PorcentagemDeCasosRelacional": "{:.5f}".format(estado["PorcentagemDeCasosRelacional"]),
+                                 "Obitos": estado["Obitos"],
+                                 "Letalidade": estado["Letalidade"],
+                                 "Atualizado": ""
+                                 })
             # writer.writerows(estados)
             writer.writerow({"Nome": "Total",
                              "Casos": str(casos["Confirmados"]).replace(".", ""),
-                             "Porcentagem": "100"})
+                             "PorcentagemDeCasosRelacional": "100",
+                             "Obitos": casos["Obitos"],
+                             "Letalidade": casos["Letalidade(%)"],
+                             "Atualizado": date.strftime("%d-%m-%Y--%H-%M")
+                             })
 
-        shutil.copyfile("./dados/" + date.strftime("%d-%m-%y--%H-%M") + ".csv", "dados/maisRecente.csv")
+        shutil.copyfile("./dados/" + date.strftime("%d-%m-%Y--%H-%M") + ".csv", "dados/maisRecente.csv")
 
         print(
-            date.strftime("%d-%m-%y--%H-%M") + ".csv criado na pasta dados, que se encontra na pasta desse script.")
+            date.strftime("%d-%m-%Y--%H-%M") + ".csv criado na pasta dados, que se encontra na pasta desse script.")
         print("maisRecente.csv foi atualizado.")
 
         dadosAcumulados = []
@@ -219,6 +266,51 @@ def main():
                                      })
                     numeroDeCasosAnterior = dado["Confirmados"]
                     numeroObitosAnterior = dado["Obitos"]
+
+        brasilcsv = str(os.path.join(pastaAtual, "dados/COVID19_"+date.strftime("%Y%m%d")+".csv"))
+        casosEstaduais = dict()
+        print("[LOG]Baixando arquivo dos casos detalhados dos estados")
+        #arquivo nao existe e baixa o mesmo
+        if not os.path.exists(brasilcsv):
+            driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[6]/div[1]').click()
+            while not os.path.exists(brasilcsv):
+                time.sleep(1)
+        #arquivo ja existe, apaga e cria outro
+        else:
+            os.remove(brasilcsv)
+            driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[6]/div[1]').click()
+            while not os.path.exists(brasilcsv):
+                time.sleep(1)
+        # DICIONARIO DE ESTADOS
+        # CADA ESTADO TEM UMA LISTA
+        # CADA LISTA POSSUI OUTRAS 5 LISTAS:
+        # data
+        # casosNovos
+        # casosAcumulados
+        # obitosNovos
+        # obitosAcumulado
+
+        with open(brasilcsv, newline='') as csvfile:
+            reader = csv.DictReader(csvfile, delimiter=';')
+            for row in reader:
+                if row['estado'] not in casosEstaduais:
+                    casosEstaduais[row['estado']] = []
+                    casosEstaduais[row['estado']].append([row['data']])
+                    casosEstaduais[row['estado']].append([row['casosNovos']])
+                    casosEstaduais[row['estado']].append([row['casosAcumulados']])
+                    casosEstaduais[row['estado']].append([row['obitosNovos']])
+                    casosEstaduais[row['estado']].append([row['obitosAcumulados']])
+                    casosEstaduais[row['estado']].append(row['regiao'])
+
+                else:
+                    casosEstaduais[row['estado']][0].append(row['data'])
+                    casosEstaduais[row['estado']][1].append(row['casosNovos'])
+                    casosEstaduais[row['estado']][2].append(row['casosAcumulados'])
+                    casosEstaduais[row['estado']][3].append(row['obitosNovos'])
+                    casosEstaduais[row['estado']][4].append(row['obitosAcumulados'])
+
+    # except Exception as exc:
+    #     print("[ERROR]{0}".format(exc))
 
     finally:
         print("[LOG]Encerrando script.")
