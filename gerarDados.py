@@ -267,19 +267,32 @@ def main():
                     numeroDeCasosAnterior = dado["Confirmados"]
                     numeroObitosAnterior = dado["Obitos"]
 
-        brasilcsv = str(os.path.join(pastaAtual, "dados/COVID19_"+date.strftime("%Y%m%d")+".csv"))
+        # Correção necessária, formato do nome foi alterado no site e alguns dados(nome,url) sobre o arquivo podem ser encontrados nesse JSON
+        req = requests.get("https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalGeral",
+                           headers={"X-Parse-Application-Id": headerRequestID})
+        reqJson = req.json()
+        fileName = reqJson['results'][0]['arquivo']['name']
+        # brasilCsvUrl = reqJson['results'][0]['arquivo']['url']
+        brasilcsv = str(os.path.join(pastaAtual, "dados/"+fileName))
+        # brasilcsv = None
         casosEstaduais = dict()
         print("[LOG]Baixando arquivo dos casos detalhados dos estados")
         #arquivo nao existe e baixa o mesmo
         if not os.path.exists(brasilcsv):
             driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[6]/div[1]').click()
-            while not os.path.exists(brasilcsv):
+            driver.get('about:downloads')
+            filename = driver.execute_script("return document.querySelector('description').getAttribute('value')")
+            brasilcsv = str(os.path.join(pastaAtual, "dados/"+filename))
+            while driver.execute_script("return document.querySelector('progress').getAttribute('value')") != "100":
                 time.sleep(1)
         #arquivo ja existe, apaga e cria outro
         else:
             os.remove(brasilcsv)
             driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[6]/div[1]').click()
-            while not os.path.exists(brasilcsv):
+            driver.get('about:downloads')
+            filename = driver.execute_script("return document.querySelector('description').getAttribute('value')")
+            brasilcsv = str(os.path.join(pastaAtual, "dados/"+filename))
+            while driver.execute_script("return document.querySelector('progress').getAttribute('value')") != "100":
                 time.sleep(1)
         # DICIONARIO DE ESTADOS
         # CADA ESTADO TEM UMA LISTA
