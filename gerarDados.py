@@ -5,6 +5,7 @@ import time
 import shutil
 import requests
 import datetime
+import traceback
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -305,22 +306,28 @@ def main():
 
         with open(brasilcsv, newline='') as csvfile:
             reader = csv.DictReader(csvfile, delimiter=';')
-            for row in reader:
-                if row['estado'] not in casosEstaduais:
-                    casosEstaduais[row['estado']] = []
-                    casosEstaduais[row['estado']].append([row['data']])
-                    casosEstaduais[row['estado']].append([row['casosNovos']])
-                    casosEstaduais[row['estado']].append([row['casosAcumulados']])
-                    casosEstaduais[row['estado']].append([row['obitosNovos']])
-                    casosEstaduais[row['estado']].append([row['obitosAcumulados']])
-                    casosEstaduais[row['estado']].append(row['regiao'])
+            try:
+                for row in reader:
+                    if row['estado'] not in casosEstaduais:
+                        casosEstaduais[row['estado']] = []
+                        casosEstaduais[row['estado']].append([row['data']])
+                        casosEstaduais[row['estado']].append([row['casosNovos']])
+                        casosEstaduais[row['estado']].append([row['casosAcumulados']])
+                        casosEstaduais[row['estado']].append([row['obitosNovos']])
+                        casosEstaduais[row['estado']].append([row['obitosAcumulados']])
+                        casosEstaduais[row['estado']].append(row['regiao'])
 
-                else:
-                    casosEstaduais[row['estado']][0].append(row['data'])
-                    casosEstaduais[row['estado']][1].append(row['casosNovos'])
-                    casosEstaduais[row['estado']][2].append(row['casosAcumulados'])
-                    casosEstaduais[row['estado']][3].append(row['obitosNovos'])
-                    casosEstaduais[row['estado']][4].append(row['obitosAcumulados'])
+                    else:
+                        casosEstaduais[row['estado']][0].append(row['data'])
+                        casosEstaduais[row['estado']][1].append(row['casosNovos'])
+                        casosEstaduais[row['estado']][2].append(row['casosAcumulados'])
+                        casosEstaduais[row['estado']][3].append(row['obitosNovos'])
+                        casosEstaduais[row['estado']][4].append(row['obitosAcumulados'])
+            except KeyError:
+                print("[ERROR]Provavelmente a tabela no qual o download foi feito possui um erro no header, resultando nesse erro.\n"
+                      "Ou o header da tabela foi alterado, necessitando de alteração no algoritmo.")
+                traceback.print_exc()
+                exit(-1)
 
     # except Exception as exc:
     #     print("[ERROR]{0}".format(exc))
