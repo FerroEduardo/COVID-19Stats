@@ -304,25 +304,25 @@ def main():
         # obitosNovos
         # obitosAcumulado
 
-        with open(brasilcsv, newline='') as csvfile:
+        with open(brasilcsv, newline='', encoding='latin-1') as csvfile:
             reader = csv.DictReader(csvfile, delimiter=';')
             try:
                 for row in reader:
-                    if row['estado'] not in casosEstaduais:
-                        casosEstaduais[row['estado']] = []
-                        casosEstaduais[row['estado']].append([row['data']])
-                        casosEstaduais[row['estado']].append([row['casosNovos']])
-                        casosEstaduais[row['estado']].append([row['casosAcumulados']])
-                        casosEstaduais[row['estado']].append([row['obitosNovos']])
-                        casosEstaduais[row['estado']].append([row['obitosAcumulados']])
-                        casosEstaduais[row['estado']].append(row['regiao'])
+                    if row['sigla'] not in casosEstaduais:
+                        casosEstaduais[row['sigla']] = []
+                        casosEstaduais[row['sigla']].append([row['data']])
+                        casosEstaduais[row['sigla']].append([row['casosNovos']])
+                        casosEstaduais[row['sigla']].append([row['casosAcumulados']])
+                        casosEstaduais[row['sigla']].append([row['obitosNovos']])
+                        casosEstaduais[row['sigla']].append([row['obitosAcumulados']])
+                        casosEstaduais[row['sigla']].append(row['região'])
 
                     else:
-                        casosEstaduais[row['estado']][0].append(row['data'])
-                        casosEstaduais[row['estado']][1].append(row['casosNovos'])
-                        casosEstaduais[row['estado']][2].append(row['casosAcumulados'])
-                        casosEstaduais[row['estado']][3].append(row['obitosNovos'])
-                        casosEstaduais[row['estado']][4].append(row['obitosAcumulados'])
+                        casosEstaduais[row['sigla']][0].append(row['data'])
+                        casosEstaduais[row['sigla']][1].append(row['casosNovos'])
+                        casosEstaduais[row['sigla']][2].append(row['casosAcumulados'])
+                        casosEstaduais[row['sigla']][3].append(row['obitosNovos'])
+                        casosEstaduais[row['sigla']][4].append(row['obitosAcumulados'])
             except KeyError:
                 print("[ERROR]Provavelmente a tabela no qual o download foi feito possui um erro no header, resultando nesse erro.\n"
                       "Ou o header da tabela foi alterado, necessitando de alteração no algoritmo.")

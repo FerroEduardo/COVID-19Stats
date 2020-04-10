@@ -461,61 +461,90 @@ def main():
                         numeroDeCasosAnterior = dado["Confirmados"]
                         numeroObitosAnterior = dado["Obitos"]
 
-        # Correção necessária, formato do nome foi alterado no site e alguns dados(nome,url) sobre o arquivo podem ser encontrados nesse JSON
-        req = requests.get("https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalGeral",
-                           headers={"X-Parse-Application-Id": headerRequestID})
-        reqJson = req.json()
-        fileName = reqJson['results'][0]['arquivo']['name']
-        # brasilCsvUrl = reqJson['results'][0]['arquivo']['url']
-        brasilcsv = str(os.path.join(pastaAtual, "dados/"+fileName))
-        # brasilcsv = None
-        casosEstaduais = dict()
-        print("[LOG]Baixando arquivo dos casos detalhados dos estados")
-        #arquivo nao existe e baixa o mesmo
-        if not os.path.exists(brasilcsv):
-            driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[6]/div[1]').click()
-            driver.get('about:downloads')
-            filename = driver.execute_script("return document.querySelector('description').getAttribute('value')")
-            brasilcsv = str(os.path.join(pastaAtual, "dados/"+filename))
-            while driver.execute_script("return document.querySelector('progress').getAttribute('value')") != "100":
-                time.sleep(1)
-        #arquivo ja existe, apaga e cria outro
-        else:
-            os.remove(brasilcsv)
-            driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[6]/div[1]').click()
-            driver.get('about:downloads')
-            filename = driver.execute_script("return document.querySelector('description').getAttribute('value')")
-            brasilcsv = str(os.path.join(pastaAtual, "dados/"+filename))
-            while driver.execute_script("return document.querySelector('progress').getAttribute('value')") != "100":
-                time.sleep(1)
-            # DICIONARIO DE ESTADOS
-            # CADA ESTADO TEM UMA LISTA
-            # CADA LISTA POSSUI OUTRAS 5 LISTAS:
-            # data
-            # casosNovos
-            # casosAcumulados
-            # obitosNovos
-            # obitosAcumulado
+        entrada = input("Deseja exibir o gráfico do histórico de casos?(sim/ultimos/nao) ")
+        if entrada != "nao":
+            if entrada != "ultimos":
+                # entrada = "sim"
+                print("[LOG]Abrindo gráfico no navegador padrão.")
+                exibirGraficoCasosAcumulados(dadosAcumulados)
+            else:
+                registrosDisponiveis = len(dadosAcumulados)
+                ultimosRegistros = int(
+                    input("Quantos registros devem ser exibidos?({} disponíveis) ".format(registrosDisponiveis)))
+                if ultimosRegistros > 0 and ultimosRegistros <= registrosDisponiveis:
+                    print("[LOG]Abrindo gráfico no navegador padrão.")
+                    exibirGraficoCasosAcumuladosPorUltimosRegistros(dadosAcumulados, ultimosRegistros)
+                while not (ultimosRegistros > 0 and ultimosRegistros <= registrosDisponiveis):
+                    ultimosRegistros = int(
+                        input("Quantos registros devem ser exibidos?({} disponíveis)".format(registrosDisponiveis)))
+                    if ultimosRegistros > 0 and ultimosRegistros <= registrosDisponiveis:
+                        print("[LOG]Abrindo gráfico no navegador padrão.")
+                        exibirGraficoCasosAcumuladosPorUltimosRegistros(dadosAcumulados, ultimosRegistros)
+                        break
 
-            with open(brasilcsv, newline='') as csvfile:
+        entrada = input("Deseja exibir o gráfico de casos de estados?(sim/nao) ")
+        if entrada != "nao":
+            print("[LOG]Abrindo gráfico no navegador padrão.")
+            exibirGraficoCasosEstados(estados)
+
+        brasilcsv = None
+        entrada = input("Deseja ver as estatísticas de casos por estado?(sim/nao) ")
+        casosEstaduais = dict()
+        if entrada != "nao":
+            # Correção necessária, formato do nome foi alterado no site e alguns dados(nome,url) sobre o arquivo podem ser encontrados nesse JSON
+            req = requests.get("https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalGeral",
+                               headers={"X-Parse-Application-Id": headerRequestID})
+            reqJson = req.json()
+            fileName = reqJson['results'][0]['arquivo']['name']
+            # brasilCsvUrl = reqJson['results'][0]['arquivo']['url']
+            brasilcsv = str(os.path.join(pastaAtual, "dados/"+fileName))
+            # brasilcsv = None
+            print("[LOG]Baixando arquivo dos casos detalhados dos estados")
+            #arquivo nao existe e baixa o mesmo
+            if not os.path.exists(brasilcsv):
+                driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[6]/div[1]').click()
+                driver.get('about:downloads')
+                filename = driver.execute_script("return document.querySelector('description').getAttribute('value')")
+                brasilcsv = str(os.path.join(pastaAtual, "dados/"+filename))
+                while driver.execute_script("return document.querySelector('progress').getAttribute('value')") != "100":
+                    time.sleep(1)
+            #arquivo ja existe, apaga e cria outro
+            else:
+                os.remove(brasilcsv)
+                driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[6]/div[1]').click()
+                driver.get('about:downloads')
+                filename = driver.execute_script("return document.querySelector('description').getAttribute('value')")
+                brasilcsv = str(os.path.join(pastaAtual, "dados/"+filename))
+                while driver.execute_script("return document.querySelector('progress').getAttribute('value')") != "100":
+                    time.sleep(1)
+                # DICIONARIO DE ESTADOS
+                # CADA ESTADO TEM UMA LISTA
+                # CADA LISTA POSSUI OUTRAS 5 LISTAS:
+                # data
+                # casosNovos
+                # casosAcumulados
+                # obitosNovos
+                # obitosAcumulado
+
+            with open(brasilcsv, newline='', encoding='latin-1') as csvfile:
                 reader = csv.DictReader(csvfile, delimiter=';')
                 try:
                     for row in reader:
-                        if row['estado'] not in casosEstaduais:
-                            casosEstaduais[row['estado']] = []
-                            casosEstaduais[row['estado']].append([row['data']])
-                            casosEstaduais[row['estado']].append([row['casosNovos']])
-                            casosEstaduais[row['estado']].append([row['casosAcumulados']])
-                            casosEstaduais[row['estado']].append([row['obitosNovos']])
-                            casosEstaduais[row['estado']].append([row['obitosAcumulados']])
-                            casosEstaduais[row['estado']].append(row['regiao'])
+                        if row['sigla'] not in casosEstaduais:
+                            casosEstaduais[row['sigla']] = []
+                            casosEstaduais[row['sigla']].append([row['data']])
+                            casosEstaduais[row['sigla']].append([row['casosNovos']])
+                            casosEstaduais[row['sigla']].append([row['casosAcumulados']])
+                            casosEstaduais[row['sigla']].append([row['obitosNovos']])
+                            casosEstaduais[row['sigla']].append([row['obitosAcumulados']])
+                            casosEstaduais[row['sigla']].append(row['região'])
 
                         else:
-                            casosEstaduais[row['estado']][0].append(row['data'])
-                            casosEstaduais[row['estado']][1].append(row['casosNovos'])
-                            casosEstaduais[row['estado']][2].append(row['casosAcumulados'])
-                            casosEstaduais[row['estado']][3].append(row['obitosNovos'])
-                            casosEstaduais[row['estado']][4].append(row['obitosAcumulados'])
+                            casosEstaduais[row['sigla']][0].append(row['data'])
+                            casosEstaduais[row['sigla']][1].append(row['casosNovos'])
+                            casosEstaduais[row['sigla']][2].append(row['casosAcumulados'])
+                            casosEstaduais[row['sigla']][3].append(row['obitosNovos'])
+                            casosEstaduais[row['sigla']][4].append(row['obitosAcumulados'])
                 except KeyError:
                     print("[ERROR]Provavelmente a tabela no qual o download foi feito possui um erro no header, resultando nesse erro.\n"
                           "Ou o header da tabela foi alterado, necessitando de alteração no algoritmo.")
