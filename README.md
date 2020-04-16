@@ -15,7 +15,7 @@
 
 ## Ambiente de testes
 * Firefox 74.0
-* Geckodriver 0.16.0
+* Geckodriver 0.26.0
 * Ubuntu 18.04.4 LTS
 * Python 3.6.9
 
