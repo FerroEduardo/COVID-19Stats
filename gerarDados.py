@@ -7,6 +7,7 @@ import requests
 import datetime
 import traceback
 
+from selenium import common
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
@@ -67,7 +68,7 @@ def main():
     profile.update_preferences()
     firefox_options = Options()
     firefox_options.headless = True
-    driver = webdriver.Firefox(firefox_profile=profile, firefox_options=firefox_options)
+    driver = webdriver.Firefox(firefox_profile=profile, options=firefox_options)
     driverversion = driver.capabilities['moz:geckodriverVersion']
     browserversion = driver.capabilities['browserVersion']
     print("[LOG]geckodriverVersion: " + driverversion, "\n[LOG]browserVersion: " + browserversion)
@@ -84,7 +85,7 @@ def main():
         )
         print("[LOG]Elementos carregados.")
         print("[LOG]Webdriver temporário sendo executado.")
-        miningDriver = webdriver.Firefox(firefox_profile=profile, firefox_options=firefox_options)
+        miningDriver = webdriver.Firefox(firefox_profile=profile, options=firefox_options)
         applicationIDRequest = None
         authorizationRequestInsumos = None
         print("[LOG]Procurando header ID para request.")
@@ -279,7 +280,8 @@ def main():
         reqJson = req.json()
         fileName = reqJson['results'][0]['arquivo']['name']
         # brasilCsvUrl = reqJson['results'][0]['arquivo']['url']
-        brasilcsv = str(os.path.join(pastaAtual, "dados/" + fileName))
+        # brasilcsv = str(os.path.join(pastaAtual, "dados/" + fileName))
+        brasilcsv = str(os.path.join(pastaAtual, "dados/arquivo_geral.csv"))
         # brasilcsv = None
         casosEstaduais = dict()
         print("[LOG]Baixando arquivo dos casos detalhados dos estados")
@@ -287,13 +289,19 @@ def main():
         # se arquivo ja existe, apaga e cria outro
         if os.path.exists(brasilcsv):
             os.remove(brasilcsv)
-        driver.find_element_by_xpath(
-            '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[1]/div[2]/ion-button').click()
+        driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[1]/div[2]/ion-button').click()
+        time.sleep(1)
         driver.get('about:downloads')
         filename = driver.execute_script("return document.querySelector('description').getAttribute('value')")
         brasilcsv = str(os.path.join(pastaAtual, "dados/" + filename))
-        while driver.execute_script("return document.querySelector('progress').getAttribute('value')") != "100":
-            time.sleep(1)
+        try:
+            getDownloadPercentage = driver.execute_script("return document.querySelector('progress').getAttribute('value')")
+            while getDownloadPercentage != "100":
+                time.sleep(1)
+                getDownloadPercentage = driver.execute_script("return document.querySelector('progress').getAttribute('value')")
+
+        except common.exceptions.JavascriptException:
+            time.sleep(2)
         # DICIONARIO DE ESTADOS
         # CADA ESTADO TEM UMA LISTA
         # CADA LISTA POSSUI OUTRAS 5 LISTAS:
@@ -337,33 +345,33 @@ def main():
                 exit(-1)
 
 
-            headerRequestInsumos = {"Authorization": authorizationRequestInsumos, "Content-Type": "application/json"}
-            bodyRequestInsumos = '{"size":30,"sort":["no_uf"],"aggs":{"doses_distribuidas":{"sum":{"field":"doses_distribuidas"}},"luava_proc_n_cirurgico":{"sum":{"field":"luava_proc_n_cirurgico"}},"avental":{"sum":{"field":"avental"}},"leitos_alocados":{"sum":{"field":"leitos_alocados"}},"teste_rapido":{"sum":{"field":"teste_rapido"}},"alcool_etilico100":{"sum":{"field":"alcool_etilico_100ml"}},"alcool_etilico500":{"sum":{"field":"alcool_etilico_500ml"}},"touca_hosp":{"sum":{"field":"touca_hosp"}},"sapatilha":{"sum":{"field":"sapatilha"}},"mascara_3_camadas":{"sum":{"field":"mascara_3_camadas"}},"oculos_protecao":{"sum":{"field":"oculos_protecao"}},"uti_adulto":{"sum":{"field":"uti_adulto"}},"pop_2019":{"sum":{"field":"pop_2019"}},"doses_aplicadas":{"sum":{"field":"doses_aplicadas"}}}}'
-            print('[LOG]Extraindo dados dos insumos.')
-            req = requests.post('https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalInsumo', data=bodyRequestInsumos, headers=headerRequestInsumos)
-            print('[LOG]Dados dos insumos extraídos.')
-            insumos = dict()
-            insumosPorEstado = dict()
-            for insumo in req.json()['aggregations'].keys():
-                insumos[insumo] = req.json()['aggregations'][insumo]['value']
+        headerRequestInsumos = {"Authorization": authorizationRequestInsumos, "Content-Type": "application/json"}
+        bodyRequestInsumos = '{"size":30,"sort":["no_uf"],"aggs":{"doses_distribuidas":{"sum":{"field":"doses_distribuidas"}},"luava_proc_n_cirurgico":{"sum":{"field":"luava_proc_n_cirurgico"}},"avental":{"sum":{"field":"avental"}},"leitos_alocados":{"sum":{"field":"leitos_alocados"}},"teste_rapido":{"sum":{"field":"teste_rapido"}},"alcool_etilico100":{"sum":{"field":"alcool_etilico_100ml"}},"alcool_etilico500":{"sum":{"field":"alcool_etilico_500ml"}},"touca_hosp":{"sum":{"field":"touca_hosp"}},"sapatilha":{"sum":{"field":"sapatilha"}},"mascara_3_camadas":{"sum":{"field":"mascara_3_camadas"}},"oculos_protecao":{"sum":{"field":"oculos_protecao"}},"uti_adulto":{"sum":{"field":"uti_adulto"}},"pop_2019":{"sum":{"field":"pop_2019"}},"doses_aplicadas":{"sum":{"field":"doses_aplicadas"}}}}'
+        print('[LOG]Extraindo dados dos insumos.')
+        req = requests.post('https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalInsumo', data=bodyRequestInsumos, headers=headerRequestInsumos)
+        print('[LOG]Dados dos insumos extraídos.')
+        insumos = dict()
+        insumosPorEstado = dict()
+        for insumo in req.json()['aggregations'].keys():
+            insumos[insumo] = req.json()['aggregations'][insumo]['value']
 
-            removerDoDict = ['@version', '@timestamp']
-            for estado in req.json()['hits']['hits']:
-                for tag in removerDoDict:
-                    estado['_source'].pop(tag)
-                insumosPorEstado[estado['_id']] = estado['_source']
-            print('[LOG]Salvando arquivo insumos.csv na pasta dados.')
-            #Isso foi feito para colocar o codigo, sigla e nome do estado no inicio do .csv
-            fieldNamesInsumosEstados = ["co_uf", "sg_uf", "no_uf", "doses_distribuidas", "luava_proc_n_cirurgico", "avental", "leitos_alocados", "teste_rapido", "alcool_etilico_100ml", "alcool_etilico_500ml", "touca_hosp", "sapatilha", "mascara_3_camadas", "oculos_protecao", "uti_adulto", "pop_2019", "doses_aplicadas", "atualizacao_insumos", "atualizacao_materiais"]
-            with open('./dados/insumos.csv', "w", newline="", encoding="utf-8") as csvfileInsumosEstado:
-                writer = csv.DictWriter(csvfileInsumosEstado,
-                                        fieldnames=fieldNamesInsumosEstados,
-                                        delimiter=';',
-                                        quotechar='"',
-                                        quoting=csv.QUOTE_NONNUMERIC)
-                writer.writeheader()
-                for estado in insumosPorEstado:
-                    writer.writerow(insumosPorEstado[estado])
+        removerDoDict = ['@version', '@timestamp']
+        for estado in req.json()['hits']['hits']:
+            for tag in removerDoDict:
+                estado['_source'].pop(tag)
+            insumosPorEstado[estado['_id']] = estado['_source']
+        print('[LOG]Salvando arquivo insumos.csv na pasta dados.')
+        # Isso foi feito para colocar o codigo, sigla e nome do estado no inicio do .csv
+        fieldNamesInsumosEstados = ["co_uf", "sg_uf", "no_uf", "doses_distribuidas", "luava_proc_n_cirurgico", "avental", "leitos_alocados", "teste_rapido", "alcool_etilico_100ml", "alcool_etilico_500ml", "touca_hosp", "sapatilha", "mascara_3_camadas", "oculos_protecao", "uti_adulto", "pop_2019", "doses_aplicadas", "atualizacao_insumos", "atualizacao_materiais"]
+        with open('dados/insumos.csv', "w", newline="", encoding="utf-8") as csvfileInsumosEstado:
+            writer = csv.DictWriter(csvfileInsumosEstado,
+                                    fieldnames=fieldNamesInsumosEstados,
+                                    delimiter=';',
+                                    quotechar='"',
+                                    quoting=csv.QUOTE_NONNUMERIC)
+            writer.writeheader()
+            for estado in insumosPorEstado:
+                writer.writerow(insumosPorEstado[estado])
 
     # except Exception as exc:
     #     print("[ERROR]{0}".format(exc))

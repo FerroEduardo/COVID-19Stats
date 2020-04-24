@@ -8,6 +8,7 @@ import requests
 import traceback
 import plotly.graph_objects as go
 
+from selenium import common
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
@@ -232,7 +233,7 @@ def main():
     profile.update_preferences()
     firefox_options = Options()
     firefox_options.headless = True
-    driver = webdriver.Firefox(firefox_profile=profile, firefox_options=firefox_options)
+    driver = webdriver.Firefox(firefox_profile=profile, options=firefox_options)
     driverversion = driver.capabilities['moz:geckodriverVersion']
     browserversion = driver.capabilities['browserVersion']
     print("[LOG]geckodriverVersion: " + driverversion, "\n[LOG]browserVersion: " + browserversion)
@@ -249,7 +250,7 @@ def main():
         )
         print("[LOG]Elementos carregados.")
         print("[LOG]Webdriver temporário sendo executado.")
-        miningDriver = webdriver.Firefox(firefox_profile=profile, firefox_options=firefox_options)
+        miningDriver = webdriver.Firefox(firefox_profile=profile, options=firefox_options)
         applicationIDRequest = None
         authorizationRequestInsumos = None
         print("[LOG]Procurando header ID para request.")
@@ -415,11 +416,11 @@ def main():
                                  "Atualizado": date.strftime("%d-%m-%Y--%H-%M")
                                  })
 
-        shutil.copyfile("./dados/" + date.strftime("%d-%m-%Y--%H-%M") + ".csv", "dados/maisRecente.csv")
+            shutil.copyfile("./dados/" + date.strftime("%d-%m-%Y--%H-%M") + ".csv", "dados/maisRecente.csv")
 
-        print(
-            date.strftime("%d-%m-%Y--%H-%M") + ".csv criado na pasta dados, que se encontra na pasta desse script.")
-        print("maisRecente.csv foi atualizado.")
+            print(
+                date.strftime("%d-%m-%Y--%H-%M") + ".csv criado na pasta dados, que se encontra na pasta desse script.")
+            print("maisRecente.csv foi atualizado.")
 
         dadosAcumulados = []
 
@@ -501,7 +502,8 @@ def main():
             reqJson = req.json()
             fileName = reqJson['results'][0]['arquivo']['name']
             # brasilCsvUrl = reqJson['results'][0]['arquivo']['url']
-            brasilcsv = str(os.path.join(pastaAtual, "dados/"+fileName))
+            # brasilcsv = str(os.path.join(pastaAtual, "dados/"+fileName))
+            brasilcsv = str(os.path.join(pastaAtual, "dados/arquivo_geral.csv"))
             # brasilcsv = None
             print("[LOG]Baixando arquivo dos casos detalhados dos estados")
             # arquivo nao existe e baixa o mesmo
@@ -509,19 +511,26 @@ def main():
             if os.path.exists(brasilcsv):
                 os.remove(brasilcsv)
             driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[1]/div[2]/ion-button').click()
+            time.sleep(1)
             driver.get('about:downloads')
             filename = driver.execute_script("return document.querySelector('description').getAttribute('value')")
-            brasilcsv = str(os.path.join(pastaAtual, "dados/"+filename))
-            while driver.execute_script("return document.querySelector('progress').getAttribute('value')") != "100":
-                time.sleep(1)
-                # DICIONARIO DE ESTADOS
-                # CADA ESTADO TEM UMA LISTA
-                # CADA LISTA POSSUI OUTRAS 5 LISTAS:
-                # data
-                # casosNovos
-                # casosAcumulados
-                # obitosNovos
-                # obitosAcumulado
+            brasilcsv = str(os.path.join(pastaAtual, "dados/" + filename))
+            try:
+                getDownloadPercentage = driver.execute_script("return document.querySelector('progress').getAttribute('value')")
+                while getDownloadPercentage != "100":
+                    time.sleep(1)
+                    getDownloadPercentage = driver.execute_script("return document.querySelector('progress').getAttribute('value')")
+
+            except common.exceptions.JavascriptException:
+                time.sleep(2)
+            # DICIONARIO DE ESTADOS
+            # CADA ESTADO TEM UMA LISTA
+            # CADA LISTA POSSUI OUTRAS 5 LISTAS:
+            # data
+            # casosNovos
+            # casosAcumulados
+            # obitosNovos
+            # obitosAcumulado
 
             with open(brasilcsv, newline='', encoding='latin-1') as csvfile:
                 reader = csv.DictReader(csvfile, delimiter=';')
@@ -593,7 +602,7 @@ def main():
                     estado['_source'].pop(tag)
                 insumosPorEstado[estado['_id']] = estado['_source']
             while True:
-                entrada = input("Deseja ver dados de todos os estados ou individualmente?(todos/invididualmente) ")
+                entrada = input("Deseja ver dados dos insumos de todos os estados ou individualmente?(todos/invididualmente) ")
                 if entrada == "todos":
                     for estado in insumosPorEstado:
                         print("Estado:", estado)
@@ -613,9 +622,9 @@ def main():
                 if input("Deseja continuar(sim/nao)? ") == "nao":
                     break
             print('[LOG]Salvando arquivo insumos.csv na pasta dados.')
-            #Isso foi feito para colocar o codigo, sigla e nome do estado no inicio do .csv
+            # Isso foi feito para colocar o codigo, sigla e nome do estado no inicio do .csv
             fieldNamesInsumosEstados = ["co_uf", "sg_uf", "no_uf", "doses_distribuidas", "luava_proc_n_cirurgico", "avental", "leitos_alocados", "teste_rapido", "alcool_etilico_100ml", "alcool_etilico_500ml", "touca_hosp", "sapatilha", "mascara_3_camadas", "oculos_protecao", "uti_adulto", "pop_2019", "doses_aplicadas", "atualizacao_insumos", "atualizacao_materiais"]
-            with open('./dados/insumos.csv', "w", newline="", encoding="utf-8") as csvfileInsumosEstado:
+            with open('dados/insumos.csv', "w", newline="", encoding="utf-8") as csvfileInsumosEstado:
                 writer = csv.DictWriter(csvfileInsumosEstado,
                                         fieldnames=fieldNamesInsumosEstados,
                                         delimiter=';',
