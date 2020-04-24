@@ -302,6 +302,8 @@ def main():
 
         except common.exceptions.JavascriptException:
             time.sleep(2)
+            while not os.path.exists(brasilcsv):
+                time.sleep(1)
         # DICIONARIO DE ESTADOS
         # CADA ESTADO TEM UMA LISTA
         # CADA LISTA POSSUI OUTRAS 5 LISTAS:
