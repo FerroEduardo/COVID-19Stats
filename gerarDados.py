@@ -212,9 +212,9 @@ def main():
             for estado in estados:
                 nome = estado["Nome"] + "(" + obterUFEstadoPorNome(estado["Nome"]) + ")"
                 writer.writerow({"Nome": nome,
-                                 "Casos": estado["Casos"],
+                                 "Casos": estado["Casos"].replace(".", ""),
                                  "PorcentagemDeCasosRelacional": "{:.5f}".format(estado["PorcentagemDeCasosRelacional"]),
-                                 "Obitos": estado["Obitos"],
+                                 "Obitos": estado["Obitos"].replace(".", ""),
                                  "Letalidade": estado["Letalidade"],
                                  "Atualizado": ""
                                  })
@@ -222,7 +222,7 @@ def main():
             writer.writerow({"Nome": "Total",
                              "Casos": str(casos["Confirmados"]).replace(".", ""),
                              "PorcentagemDeCasosRelacional": "100",
-                             "Obitos": casos["Obitos"],
+                             "Obitos": casos["Obitos"].replace(".", ""),
                              "Letalidade": casos["Letalidade(%)"],
                              "Atualizado": date.strftime("%d-%m-%Y--%H-%M")
                              })
