@@ -315,26 +315,26 @@ def main():
         # Por algum motivo, o Selenium só reconheceu os textos quando eles estavam na tela
         print("[LOG]Dados das regiões sendo extraídos.")
         scrollRegioes = driver.find_element_by_xpath(
-            '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/chart-pie-component/p')
+            '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/div[1]/chart-pie-component/p')
         driver.execute_script("arguments[0].scrollIntoView()", scrollRegioes)
         # Aguarda regiões carregarem
         WebDriverWait(driver, 120).until(
             EC.text_to_be_present_in_element(
-                (By.XPATH, '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/chart-pie-component/legendas-component/div/div[5]/div[1]/div[2]'),
+                (By.XPATH, '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/div[1]/chart-pie-component/legendas-component/div/div[5]/div[1]/div[2]'),
                 "Sul")
         )
         modeloRegiao = "Nome: {}, Casos confirmados: {}({}%)"
         for i in range(1, 6):
             scrollRegioes = driver.find_element_by_xpath(
-                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/chart-pie-component/legendas-component/div/div[' + str(i) + ']')
+                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/div[1]/chart-pie-component/legendas-component/div/div[' + str(i) + ']')
             driver.execute_script("arguments[0].scrollIntoView()", scrollRegioes)
             dado = dict()
             dado['Nome'] = driver.find_element_by_xpath(
-                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/chart-pie-component/legendas-component/div/div[' + str(i) + ']/div[1]/div[2]').text
+                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/div[1]/chart-pie-component/legendas-component/div/div[' + str(i) + ']/div[1]/div[2]').text
             dado['Casos'] = driver.find_element_by_xpath(
-                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/chart-pie-component/legendas-component/div/div[' + str(i) + ']/div[2]/div[1]').text
+                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/div[1]/chart-pie-component/legendas-component/div/div[' + str(i) + ']/div[2]/div[1]').text
             dado['PorcentagemDeCasosRelacional'] = driver.find_element_by_xpath(
-                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/chart-pie-component/legendas-component/div/div[' + str(i) + ']/div[2]/div[2]').text[:-1].replace(',','.')
+                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/div[1]/chart-pie-component/legendas-component/div/div[' + str(i) + ']/div[2]/div[2]').text[:-1].replace(',','.')
 
             regioes.append(dado)
         print("[LOG]Dados das regiões extraídos.")
@@ -348,18 +348,18 @@ def main():
         # Captura dados dos estados da página
         print("[LOG]Dados dos estados sendo extraídos.")
         scrollEstados = driver.find_element_by_xpath(
-            '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]')
+            '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]/div[1]/lista-itens-component/p/span')
         driver.execute_script("arguments[0].scrollIntoView()", scrollEstados)
         for i in range(1, 28):
             scrollEstados = driver.find_element_by_xpath(
-                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]/lista-itens-component/div[2]/div[' + str(i) + ']')
+                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]/div[1]/lista-itens-component/div[2]/div[' + str(i) + ']')
             driver.execute_script("arguments[0].scrollIntoView()", scrollEstados)
             dado = dict()
-            dado['Nome'] = driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]/lista-itens-component/div[2]/div[' + str(i) + ']/div[1]').text
-            dado['Casos'] = driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]/lista-itens-component/div[2]/div[' + str(i) + ']/div[2]/div[1]/b').text
+            dado['Nome'] = driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]/div[1]/lista-itens-component/div[2]/div[' + str(i) + ']/div[1]').text
+            dado['Casos'] = driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]/div[1]/lista-itens-component/div[2]/div[' + str(i) + ']/div[3]/div[1]/b').text
             dado['PorcentagemDeCasosRelacional'] = float((int(dado['Casos']) / int(casos["Confirmados"].replace(".", ""))) * 100.0)
-            dado['Obitos'] = driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]/lista-itens-component/div[2]/div[' + str(i) + ']/div[2]/div[2]/b').text
-            dado['Letalidade'] = driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]/lista-itens-component/div[2]/div[' + str(i) + ']/div[2]/div[3]/b').text
+            dado['Obitos'] = driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]/div[1]/lista-itens-component/div[2]/div[' + str(i) + ']/div[3]/div[2]/b').text
+            dado['Letalidade'] = driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]/div[1]/lista-itens-component/div[2]/div[' + str(i) + ']/div[3]/div[4]/b').text
             if "%" in dado['Letalidade']:
                 dado['Letalidade'] = dado['Letalidade'][:-1].replace(",", ".")
             estados.append(dado)
