@@ -1,7 +1,5 @@
 # COVID-19Stats
-## Requisitos
-* Firefox 75.0 [Download](https://www.mozilla.org/pt-BR/firefox/new/)
-* Geckodriver 0.26.0 [[Download](https://stackoverflow.com/a/40392714), [Tutorial](https://github.com/mozilla/geckodriver/releases/tag/v0.26.0)]
+## Ambiente de Execução
 * Ubuntu 20.04 LTS [Download](https://ubuntu.com/)
 * Pipenv 2018.11.26 [Download](https://pipenv.pypa.io/en/latest/install/#installing-pipenv)
 * Python 3.8.2 [Download](https://www.python.org/downloads/)

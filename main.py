@@ -1,19 +1,11 @@
 import os
-import re
 import csv
-import time
 import shutil
-import datetime
 import requests
+import datetime
+import dateutil
 import traceback
 import plotly.graph_objects as go
-
-from selenium import common
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 
 def obterUFEstadoPorNome(estado):
@@ -225,117 +217,45 @@ def exibirGraficoDetalhadoCasosEntreEstados(casosEstados, ufEstado1, nomeEstado1
 def main():
     url = "https://covid.saude.gov.br/"
     pastaAtual = os.getcwd()
-    profile = webdriver.FirefoxProfile()
-    profile.set_preference('browser.download.folderList', 2)
-    profile.set_preference('browser.download.manager.showWhenStarting', False)
-    profile.set_preference('browser.download.dir', str(os.path.join(pastaAtual, "dados")))
-    profile.set_preference('browser.helperApps.neverAsk.saveToDisk', 'text/csv')
-    profile.update_preferences()
-    firefox_options = Options()
-    firefox_options.headless = True
-    driver = webdriver.Firefox(firefox_profile=profile, options=firefox_options)
-    driverversion = driver.capabilities['moz:geckodriverVersion']
-    browserversion = driver.capabilities['browserVersion']
-    print("[LOG]geckodriverVersion: " + driverversion, "\n[LOG]browserVersion: " + browserversion)
-    print("[LOG]Carregando página...")
-    driver.get(url=url)
-    print("[LOG]Página carregada.")
     try:
-        print("[LOG]Aguardando elementos da página serem carregados...")
-        WebDriverWait(driver, 120).until(
-            # Verifica se página/data foi carregada
-            EC.text_to_be_present_in_element(
-                (By.XPATH, '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[1]/div[1]/div[3]/span'),
-                "2020")
-        )
-        print("[LOG]Elementos carregados.")
-        print("[LOG]Webdriver temporário sendo executado.")
-        miningDriver = webdriver.Firefox(firefox_profile=profile, options=firefox_options)
-        applicationIDRequest = None
-        authorizationRequestInsumos = None
-        print("[LOG]Procurando header ID para request.")
-        try:
-            # A partir daqui, o algoritmo procura todas as tag <script> do html da pagina e
-            # procura pela string "X-Parse-Application-Id" e pela string "Authorization"
-            # Depois de encontrar, é utilizado REGEX para encontar alguns padrões e, a partir
-            # deles, procuro pelas strings "X-Parse-Application-Id" e "Authorization" e um parse simples.
-            # Essa string que é encontrada é utilizada como request header em um GET request em uma parte do código
-            header = driver.find_element_by_tag_name("head")
-            scriptsFromHead = header.find_elements_by_tag_name("script")
-            for script in scriptsFromHead:
-                if script.get_attribute("src") and "https://covid.saude.gov.br" in script.get_attribute("src"):
-                    scriptUrl = script.get_attribute("src")
-                    miningDriver.get(scriptUrl)
-                    p = re.compile('\(\"(.*?)\"\)')
-                    if "X-Parse-Application-Id" in miningDriver.page_source and "Authorization" in miningDriver.page_source:
-                        html = miningDriver.page_source
-                        for match in p.findall(html):
-                            if "X-Parse-Application-Id" in match:
-                                applicationIDRequest = str(match.split('","')[1]).strip()
-                                # print(headerRequestID)
-                                print("[LOG]Header ID para request encontrado.")
-                            elif "Authorization" in match:
-                                authorizationRequestInsumos = str(match.split('","')[1]).strip()
-                                # print(headerRequestInsumos)
-                                print("[LOG]Header Authorization para request encontrado.")
-                                break
-                        break
-
-        finally:
-            miningDriver.close()
-            print("[LOG]Webdriver temporário encerrado.")
+        application_id_request = 'unAFkcaNDeXajurGB7LChj8SgQYS2ptm'
 
         # Captura dados gerais da página
         print("[LOG]Capturando dados gerais.")
+        dados_gerais = requests.get('https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalSintese',
+                                    headers={"X-Parse-Application-Id": application_id_request}).json()
         casos = dict()
-        casos["Confirmados"] = driver.find_element_by_xpath(
-            '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/card-totalizadores-component/div[1]/div[1]/div/div[1]').text
-        casos["Obitos"] = driver.find_element_by_xpath(
-            '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/card-totalizadores-component/div[1]/div[2]/div/div[1]').text
-        casos["Letalidade(%)"] = driver.find_element_by_xpath(
-            '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/card-totalizadores-component/div[1]/div[3]/div/div[1]').text[:-1].replace(",", ".")
-
-        dateStr = driver.find_element_by_xpath(
-            '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[1]/div[1]/div[3]/span').text
-        dateStr = dateStr.split(" ")
-        hora = int(dateStr[0].split(":")[0])
-        minuto = int((dateStr[0].split(":")[1]))
-        dia = int(dateStr[1].split("/")[0])
-        mes = int(dateStr[1].split("/")[1])
-        ano = int(dateStr[1].split("/")[2])
+        casos["Confirmados"] = int(dados_gerais[0]['casosAcumuladoN'])
+        casos["Obitos"] = int(dados_gerais[0]['obitosAcumuladoN'])
+        casos["Letalidade(%)"] = float((casos["Obitos"] * 100) / casos["Confirmados"])
+        # Pega hora em UTC e converte
+        utc_zone = dateutil.tz.tzutc()
+        local_zone = dateutil.tz.tzlocal()
+        utc = datetime.datetime.strptime(dados_gerais[0]['updated_at'], '%Y-%m-%dT%H:%M:%S.%fZ')
+        utc = utc.replace(tzinfo=utc_zone)
+        # Converte para zona local
+        hora_local_obj = utc.astimezone(local_zone)
+        hora = hora_local_obj.hour
+        minuto = hora_local_obj.minute
+        dia = hora_local_obj.day
+        mes = hora_local_obj.month
+        ano = hora_local_obj.year
         date = datetime.datetime(ano, mes, dia, hora, minuto)
         print("[LOG]Dados gerais extraídos.")
         print("Dados atualizados " + date.strftime("%d/%m/%Y %H:%M") + ". Fonte: " + url)
         if input("Deseja ver as estatísticas gerais do Brasil?(sim/nao) ") != "nao":
             for key in casos.keys():
-                print(key + ": " + casos[key])
+                print('{:s}: {:.2f}'.format(key, casos[key]))
 
         regioes = []
-        # Captura dados das regiões da página
-        # Por algum motivo, o Selenium só reconheceu os textos quando eles estavam na tela
         print("[LOG]Dados das regiões sendo extraídos.")
-        scrollRegioes = driver.find_element_by_xpath(
-            '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/div[1]/chart-pie-component/p')
-        driver.execute_script("arguments[0].scrollIntoView()", scrollRegioes)
-        # Aguarda regiões carregarem
-        WebDriverWait(driver, 120).until(
-            EC.text_to_be_present_in_element(
-                (By.XPATH, '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/div[1]/chart-pie-component/legendas-component/div/div[5]/div[1]/div[2]'),
-                "Sul")
-        )
-        modeloRegiao = "Nome: {}, Casos confirmados: {}({}%)"
+        dados_regioes = dados_gerais
+        modeloRegiao = "Nome: {}, Casos confirmados: {}({:.2f}%)"
         for i in range(1, 6):
-            scrollRegioes = driver.find_element_by_xpath(
-                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/div[1]/chart-pie-component/legendas-component/div/div[' + str(i) + ']')
-            driver.execute_script("arguments[0].scrollIntoView()", scrollRegioes)
             dado = dict()
-            dado['Nome'] = driver.find_element_by_xpath(
-                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/div[1]/chart-pie-component/legendas-component/div/div[' + str(i) + ']/div[1]/div[2]').text
-            dado['Casos'] = driver.find_element_by_xpath(
-                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/div[1]/chart-pie-component/legendas-component/div/div[' + str(i) + ']/div[2]/div[1]').text
-            dado['PorcentagemDeCasosRelacional'] = driver.find_element_by_xpath(
-                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[1]/div[2]/div[1]/chart-pie-component/legendas-component/div/div[' + str(i) + ']/div[2]/div[2]').text[:-1].replace(',','.')
-
+            dado['Nome'] = dados_regioes[i]['_id']
+            dado['Casos'] = int(dados_regioes[i]['casosAcumulado'])
+            dado['PorcentagemDeCasosRelacional'] = (dado['Casos'] / casos["Confirmados"]) * 100
             regioes.append(dado)
         print("[LOG]Dados das regiões extraídos.")
         if input("Deseja ver as estatísticas por região?(sim/nao) ") != "nao":
@@ -345,24 +265,18 @@ def main():
                                           regiao['PorcentagemDeCasosRelacional']))
 
         estados = []
-        # Captura dados dos estados da página
+        # Captura dados dos estados
         print("[LOG]Dados dos estados sendo extraídos.")
-        scrollEstados = driver.find_element_by_xpath(
-            '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]/div[1]/lista-itens-component/p/span')
-        driver.execute_script("arguments[0].scrollIntoView()", scrollEstados)
-        for i in range(1, 28):
-            scrollEstados = driver.find_element_by_xpath(
-                '/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]/div[1]/lista-itens-component/div[2]/div[' + str(i) + ']')
-            driver.execute_script("arguments[0].scrollIntoView()", scrollEstados)
-            dado = dict()
-            dado['Nome'] = driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]/div[1]/lista-itens-component/div[2]/div[' + str(i) + ']/div[1]').text
-            dado['Casos'] = driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]/div[1]/lista-itens-component/div[2]/div[' + str(i) + ']/div[3]/div[1]/b').text
-            dado['PorcentagemDeCasosRelacional'] = float((int(dado['Casos']) / int(casos["Confirmados"].replace(".", ""))) * 100.0)
-            dado['Obitos'] = driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]/div[1]/lista-itens-component/div[2]/div[' + str(i) + ']/div[3]/div[2]/b').text
-            dado['Letalidade'] = driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/painel-geral-component/div/div[2]/div[2]/div[1]/lista-itens-component/div[2]/div[' + str(i) + ']/div[3]/div[4]/b').text
-            if "%" in dado['Letalidade']:
-                dado['Letalidade'] = dado['Letalidade'][:-1].replace(",", ".")
-            estados.append(dado)
+        # dados_estados = dados_regioes
+        for regiao in dados_regioes[1:6]:
+            for estado in regiao['listaMunicipios']:
+                dado = dict()
+                dado['Nome'] = obterNomeEstadoPorUF(estado['_id'])
+                dado['Casos'] = int(estado['casosAcumulado'])
+                dado['PorcentagemDeCasosRelacional'] = float((dado['Casos'] / casos["Confirmados"]) * 100.0)
+                dado['Obitos'] = int(estado['obitosAcumulado'])
+                dado['Letalidade'] = float((dado['Obitos'] * 100) / dado['Casos'])
+                estados.append(dado)
         print("[LOG]Dados dos estados extraídos.")
         entrada = input("Deseja ver as estatísticas por estados?(sim/nao/todos) ")
         while entrada != "nao":
@@ -382,10 +296,11 @@ def main():
 
         entrada = input("Deseja passar todas a informações disponíveis para um arquivo no formato .csv?(sim/nao) ")
         if entrada != "nao":
-            with open("./dados/" + date.strftime("%d-%m-%Y--%H-%M") + ".csv", "w", newline="", encoding="utf-8") as file:
-                fieldNames = ["Nome", "Casos", "PorcentagemDeCasosRelacional", "Obitos", "Letalidade", "Atualizado"]
+            with open("./dados/" + date.strftime("%d-%m-%Y--%H-%M") + ".csv", "w", newline="",
+                      encoding="utf-8") as file:
+                field_names = ["Nome", "Casos", "PorcentagemDeCasosRelacional", "Obitos", "Letalidade", "Atualizado"]
                 writer = csv.DictWriter(file,
-                                        fieldnames=fieldNames,
+                                        fieldnames=field_names,
                                         delimiter=";",
                                         quotechar='"',
                                         quoting=csv.QUOTE_NONNUMERIC)
@@ -402,7 +317,8 @@ def main():
                     nome = estado["Nome"] + "(" + obterUFEstadoPorNome(estado["Nome"]) + ")"
                     writer.writerow({"Nome": nome,
                                      "Casos": estado["Casos"],
-                                     "PorcentagemDeCasosRelacional": "{:.5f}".format(estado["PorcentagemDeCasosRelacional"]),
+                                     "PorcentagemDeCasosRelacional": "{:.5f}".format(
+                                         estado["PorcentagemDeCasosRelacional"]),
                                      "Obitos": estado["Obitos"],
                                      "Letalidade": estado["Letalidade"],
                                      "Atualizado": ""
@@ -422,34 +338,33 @@ def main():
                 date.strftime("%d-%m-%Y--%H-%M") + ".csv criado na pasta dados, que se encontra na pasta desse script.")
             print("maisRecente.csv foi atualizado.")
 
-        dadosAcumulados = []
+        dados_acumulados = []
 
-        req = requests.get("https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalAcumulo",
-                           headers={"X-Parse-Application-Id": applicationIDRequest})
-        reqJson = req.json()
-        for dado in reqJson['results']:
-            dadosAcumulados.append({"Data": dado["label"],
-                                    "Confirmados": dado["qtd_confirmado"],
-                                    "Obitos": dado["qtd_obito"]
+        req = requests.get("https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalCasos")
+        req_json = req.json()
+        for dado in req_json['dias']:
+            dados_acumulados.append({"Data": dado["_id"],
+                                    "Confirmados": dado["casosAcumulado"],
+                                    "Obitos": dado["obitosAcumulado"]
                                     })
 
         entrada = input("Deseja passar o histórico de casos para um arquivo no formato .csv?(sim/nao) ")
         if entrada != "nao":
             with open("dados/casosAcumulados.csv", "w", newline="", encoding="utf-8") as file:
-                fieldNames = ["Data", "Confirmados", "Novos Confirmados", "Obitos", "Novos Obitos"]
+                field_names = ["Data", "Confirmados", "Novos Confirmados", "Obitos", "Novos Obitos"]
                 writer = csv.DictWriter(file,
-                                        fieldnames=fieldNames,
+                                        fieldnames=field_names,
                                         delimiter=";",
                                         quotechar='"',
                                         quoting=csv.QUOTE_NONNUMERIC
                                         )
                 writer.writeheader()
-                numeroObitosAnterior = None
-                numeroDeCasosAnterior = None
-                for dado in dadosAcumulados:
-                    if numeroDeCasosAnterior == None and numeroObitosAnterior == None:
-                        numeroDeCasosAnterior = dado["Confirmados"]
-                        numeroObitosAnterior = dado["Obitos"]
+                numero_obitos_anterior = None
+                numero_de_casos_anterior = None
+                for dado in dados_acumulados:
+                    if numero_de_casos_anterior == None and numero_obitos_anterior == None:
+                        numero_de_casos_anterior = dado["Confirmados"]
+                        numero_obitos_anterior = dado["Obitos"]
                         writer.writerow({"Data": dado["Data"],
                                          "Confirmados": dado["Confirmados"],
                                          "Novos Confirmados": "0",
@@ -459,32 +374,32 @@ def main():
                     else:
                         writer.writerow({"Data": dado["Data"],
                                          "Confirmados": dado["Confirmados"],
-                                         "Novos Confirmados": int(dado["Confirmados"]) - int(numeroDeCasosAnterior),
+                                         "Novos Confirmados": int(dado["Confirmados"]) - int(numero_de_casos_anterior),
                                          "Obitos": dado["Obitos"],
-                                         "Novos Obitos": int(dado["Obitos"]) - int(numeroObitosAnterior)
+                                         "Novos Obitos": int(dado["Obitos"]) - int(numero_obitos_anterior)
                                          })
-                        numeroDeCasosAnterior = dado["Confirmados"]
-                        numeroObitosAnterior = dado["Obitos"]
+                        numero_de_casos_anterior = dado["Confirmados"]
+                        numero_obitos_anterior = dado["Obitos"]
 
         entrada = input("Deseja exibir o gráfico do histórico de casos?(sim/ultimos/nao) ")
         if entrada != "nao":
             if entrada != "ultimos":
                 # entrada = "sim"
                 print("[LOG]Abrindo gráfico no navegador padrão.")
-                exibirGraficoCasosAcumulados(dadosAcumulados)
+                exibirGraficoCasosAcumulados(dados_acumulados)
             else:
-                registrosDisponiveis = len(dadosAcumulados)
+                registrosDisponiveis = len(dados_acumulados)
                 ultimosRegistros = int(
                     input("Quantos registros devem ser exibidos?({} disponíveis) ".format(registrosDisponiveis)))
                 if ultimosRegistros > 0 and ultimosRegistros <= registrosDisponiveis:
                     print("[LOG]Abrindo gráfico no navegador padrão.")
-                    exibirGraficoCasosAcumuladosPorUltimosRegistros(dadosAcumulados, ultimosRegistros)
+                    exibirGraficoCasosAcumuladosPorUltimosRegistros(dados_acumulados, ultimosRegistros)
                 while not (ultimosRegistros > 0 and ultimosRegistros <= registrosDisponiveis):
                     ultimosRegistros = int(
                         input("Quantos registros devem ser exibidos?({} disponíveis)".format(registrosDisponiveis)))
                     if ultimosRegistros > 0 and ultimosRegistros <= registrosDisponiveis:
                         print("[LOG]Abrindo gráfico no navegador padrão.")
-                        exibirGraficoCasosAcumuladosPorUltimosRegistros(dadosAcumulados, ultimosRegistros)
+                        exibirGraficoCasosAcumuladosPorUltimosRegistros(dados_acumulados, ultimosRegistros)
                         break
 
         entrada = input("Deseja exibir o gráfico de casos de estados?(sim/nao) ")
@@ -492,82 +407,48 @@ def main():
             print("[LOG]Abrindo gráfico no navegador padrão.")
             exibirGraficoCasosEstados(estados)
 
-        brasilcsv = None
-        entrada = input("Deseja ver as estatísticas de casos por estado?(sim/nao) ")
-        casosEstaduais = dict()
-        if entrada != "nao":
-            # Correção necessária, formato do nome foi alterado no site e alguns dados(nome,url) sobre o arquivo podem ser encontrados nesse JSON
-            req = requests.get("https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalGeral",
-                               headers={"X-Parse-Application-Id": applicationIDRequest})
-            reqJson = req.json()
-            fileName = reqJson['results'][0]['arquivo']['name']
-            # brasilCsvUrl = reqJson['results'][0]['arquivo']['url']
-            # brasilcsv = str(os.path.join(pastaAtual, "dados/"+fileName))
-            brasilcsv = str(os.path.join(pastaAtual, "dados/arquivo_geral.csv"))
-            # brasilcsv = None
-            print("[LOG]Baixando arquivo dos casos detalhados dos estados")
-            # arquivo nao existe e baixa o mesmo
-            # se arquivo ja existe, apaga e cria outro
-            if os.path.exists(brasilcsv):
-                os.remove(brasilcsv)
-            driver.find_element_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[1]/div[2]/ion-button').click()
-            time.sleep(1)
-            driver.get('about:downloads')
-            filename = driver.execute_script("return document.querySelector('description').getAttribute('value')")
-            brasilcsv = str(os.path.join(pastaAtual, "dados/" + filename))
-            try:
-                getDownloadPercentage = driver.execute_script("return document.querySelector('progress').getAttribute('value')")
-                while getDownloadPercentage != "100":
-                    time.sleep(1)
-                    getDownloadPercentage = driver.execute_script("return document.querySelector('progress').getAttribute('value')")
+        entrada = input("Deseja ver as estatísticas de casos detalhados por estado?(sim/nao) ")
+        casos_estaduais = dict()
+        print("[LOG]Obtendo casos detalhados dos estados")
 
-            except common.exceptions.JavascriptException:
-                time.sleep(2)
-                while not os.path.exists(brasilcsv):
-                    time.sleep(1)
-            # DICIONARIO DE ESTADOS
-            # CADA ESTADO TEM UMA LISTA
-            # CADA LISTA POSSUI OUTRAS 5 LISTAS:
-            # data
-            # casosNovos
-            # casosAcumulados
-            # obitosNovos
-            # obitosAcumulado
+        # DICIONARIO DE ESTADOS
+        # CADA ESTADO TEM UMA LISTA
+        # CADA LISTA POSSUI OUTRAS 5 LISTAS:
+        # data
+        # casosNovos
+        # casosAcumulados
+        # obitosNovos
+        # obitosAcumulado
 
-            with open(brasilcsv, newline='', encoding='latin-1') as csvfile:
-                reader = csv.DictReader(csvfile, delimiter=';')
-                try:
-                    for row in reader:
-                        keySiglaOuEstado = None
-                        if 'estado' in row.keys():
-                            keySiglaOuEstado = 'estado'
-                        else:
-                            keySiglaOuEstado = 'sigla'
-                        if row[keySiglaOuEstado] not in casosEstaduais:
-                            casosEstaduais[row[keySiglaOuEstado]] = []
-                            casosEstaduais[row[keySiglaOuEstado]].append([row['data']])
-                            casosEstaduais[row[keySiglaOuEstado]].append([row['casosNovos']])
-                            casosEstaduais[row[keySiglaOuEstado]].append([row['casosAcumulados']])
-                            casosEstaduais[row[keySiglaOuEstado]].append([row['obitosNovos']])
-                            casosEstaduais[row[keySiglaOuEstado]].append([row['obitosAcumulados']])
-                            if row['regiao']:
-                                casosEstaduais[row[keySiglaOuEstado]].append(row['regiao'])
-                            elif row['região']:
-                                casosEstaduais[row[keySiglaOuEstado]].append(row['regiao'])
+        casos_detalhados_estados = requests.get(
+            'https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalRegiaoUf').json()
 
-                        else:
-                            casosEstaduais[row[keySiglaOuEstado]][0].append(row['data'])
-                            casosEstaduais[row[keySiglaOuEstado]][1].append(row['casosNovos'])
-                            casosEstaduais[row[keySiglaOuEstado]][2].append(row['casosAcumulados'])
-                            casosEstaduais[row[keySiglaOuEstado]][3].append(row['obitosNovos'])
-                            casosEstaduais[row[keySiglaOuEstado]][4].append(row['obitosAcumulados'])
-                except KeyError:
-                    print("[ERROR]Provavelmente a tabela no qual o download foi feito possui um erro no header, resultando nesse erro.\n"
-                          "Ou o header da tabela foi alterado, necessitando de alteração no algoritmo.")
-                    traceback.print_exc()
-                    exit(-1)
+        for regiao in regioes:
+            nome_regiao = regiao['Nome']
+            for estado in casos_detalhados_estados[nome_regiao]:
+                dia_anterior = dict()
+                for dia in casos_detalhados_estados[nome_regiao][estado]['dias']:
+                    if estado not in casos_estaduais:
+                        casos_estaduais[estado] = []
+                        casos_estaduais[estado].append([dia['_id']])
+                        casos_estaduais[estado].append([dia['casosAcumulado']])  # casos novos
+                        casos_estaduais[estado].append([dia['casosAcumulado']])  # casos acumulados
+                        casos_estaduais[estado].append([dia['obitosAcumulado']])  # obitos novos
+                        casos_estaduais[estado].append([dia['obitosAcumulado']])  # obitos acumulados
+                        casos_estaduais[estado].append(regiao)  # obitos acumulados
+                        dia_anterior['casos'] = dia['casosAcumulado']
+                        dia_anterior['obitos'] = dia['obitosAcumulado']
+                    else:
+                        casos_estaduais[estado][0].append(dia['_id'])
+                        casos_estaduais[estado][1].append(dia['casosAcumulado'] - dia_anterior['casos'])  # casos novos
+                        casos_estaduais[estado][2].append(dia['casosAcumulado'])  # casos acumulados
+                        casos_estaduais[estado][3].append(
+                            dia['obitosAcumulado'] - dia_anterior['obitos'])  # obitos novos
+                        casos_estaduais[estado][4].append(dia['obitosAcumulado'])  # obitos acumulados
+                        dia_anterior['casos'] = dia['casosAcumulado']
+                        dia_anterior['obitos'] = dia['obitosAcumulado']
 
-            while entrada != "nao":
+        while entrada != "nao":
                 entrada2 = input("Deseja ver um estado individualmente ou comparar com outro?(individual/comparar) ")
                 if entrada2 == "comparar":
                     estado1 = input("Nome do primeiro estado a ser comparado: ")
@@ -576,72 +457,24 @@ def main():
                     ufEstado1 = obterUFEstadoPorNome(nomeEstado1)
                     nomeEstado2 = obterPrimeiroNomeEstadoPorEntrada(estado2)
                     ufEstado2 = obterUFEstadoPorNome(nomeEstado2)
-                    exibirGraficoDetalhadoCasosEntreEstados(casosEstaduais, ufEstado1, nomeEstado1, ufEstado2, nomeEstado2)
+                    exibirGraficoDetalhadoCasosEntreEstados(casos_estaduais, ufEstado1, nomeEstado1, ufEstado2, nomeEstado2)
                     entrada = input("Deseja continuar(sim/nao)? ")
 
                 else:
                     estado = input("Nome do estado: ")
                     nomeEstado = obterPrimeiroNomeEstadoPorEntrada(estado)
                     ufEstado = obterUFEstadoPorNome(nomeEstado)
-                    exibirGraficoDetalhadoCasosEstado(casosEstaduais, ufEstado, nomeEstado)
+                    exibirGraficoDetalhadoCasosEstado(casos_estaduais, ufEstado, nomeEstado)
                     entrada = input("Deseja continuar(sim/nao)? ")
 
 
-        if input("Deseja ver dados sobre os insumos distribuidos e passar todas a informações para um arquivo no formato .csv?(sim/nao) ") != 'nao':
-            headerRequestInsumos = {"Authorization": authorizationRequestInsumos, "Content-Type": "application/json"}
-            bodyRequestInsumos = '{"size":30,"sort":["no_uf"],"aggs":{"doses_distribuidas":{"sum":{"field":"doses_distribuidas"}},"luava_proc_n_cirurgico":{"sum":{"field":"luava_proc_n_cirurgico"}},"avental":{"sum":{"field":"avental"}},"leitos_alocados":{"sum":{"field":"leitos_alocados"}},"teste_rapido":{"sum":{"field":"teste_rapido"}},"alcool_etilico100":{"sum":{"field":"alcool_etilico_100ml"}},"alcool_etilico500":{"sum":{"field":"alcool_etilico_500ml"}},"touca_hosp":{"sum":{"field":"touca_hosp"}},"sapatilha":{"sum":{"field":"sapatilha"}},"mascara_3_camadas":{"sum":{"field":"mascara_3_camadas"}},"oculos_protecao":{"sum":{"field":"oculos_protecao"}},"uti_adulto":{"sum":{"field":"uti_adulto"}},"pop_2019":{"sum":{"field":"pop_2019"}},"doses_aplicadas":{"sum":{"field":"doses_aplicadas"}}}}'
-            print('[LOG]Extraindo dados dos insumos.')
-            req = requests.post('https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalInsumo', data=bodyRequestInsumos, headers=headerRequestInsumos)
-            print('[LOG]Dados dos insumos extraídos.')
-            insumos = dict()
-            insumosPorEstado = dict()
-            for insumo in req.json()['aggregations'].keys():
-                insumos[insumo] = req.json()['aggregations'][insumo]['value']
 
-            removerDoDict = ['@version', '@timestamp']
-            for estado in req.json()['hits']['hits']:
-                for tag in removerDoDict:
-                    estado['_source'].pop(tag)
-                insumosPorEstado[estado['_id']] = estado['_source']
-            while True:
-                entrada = input("Deseja ver dados dos insumos de todos os estados ou individualmente?(todos/invididualmente) ")
-                if entrada == "todos":
-                    for estado in insumosPorEstado:
-                        print("Estado:", estado)
-                        for insumo, quantidade in insumosPorEstado[estado].items():
-                            print(insumo + ": " + str(quantidade), end=", ")
-                        print()
-
-                else:
-                    estado = input("Qual o nome do estado? ")
-                    nomeEstado = obterPrimeiroNomeEstadoPorEntrada(estado)
-                    ufEstado = obterUFEstadoPorNome(nomeEstado)
-                    print(nomeEstado)
-                    for insumo, quantidade in insumosPorEstado[ufEstado].items():
-                        print(insumo + ": " + str(quantidade), end=", ")
-                    print()
-
-                if input("Deseja continuar(sim/nao)? ") == "nao":
-                    break
-            print('[LOG]Salvando arquivo insumos.csv na pasta dados.')
-            # Isso foi feito para colocar o codigo, sigla e nome do estado no inicio do .csv
-            fieldNamesInsumosEstados = ["co_uf", "sg_uf", "no_uf", "doses_distribuidas", "luava_proc_n_cirurgico", "avental", "leitos_alocados", "teste_rapido", "alcool_etilico_100ml", "alcool_etilico_500ml", "touca_hosp", "sapatilha", "mascara_3_camadas", "oculos_protecao", "uti_adulto", "pop_2019", "doses_aplicadas", "atualizacao_insumos", "atualizacao_materiais"]
-            with open('dados/insumos.csv', "w", newline="", encoding="utf-8") as csvfileInsumosEstado:
-                writer = csv.DictWriter(csvfileInsumosEstado,
-                                        fieldnames=fieldNamesInsumosEstados,
-                                        delimiter=';',
-                                        quotechar='"',
-                                        quoting=csv.QUOTE_NONNUMERIC)
-                writer.writeheader()
-                for estado in insumosPorEstado:
-                    writer.writerow(insumosPorEstado[estado])
 
     # except Exception as exc:
     #     print("[ERROR]{0}".format(exc))
 
     finally:
         print("[LOG]Encerrando script.")
-        driver.quit()
         print("[LOG]Script encerrado.")
         print("Todos os dados foram extraídos de: " + url + ".")
 
