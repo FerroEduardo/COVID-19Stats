@@ -3,7 +3,7 @@ import csv
 import shutil
 import requests
 import datetime
-import dateutil
+from dateutil import tz
 import traceback
 import plotly.graph_objects as go
 
@@ -229,8 +229,8 @@ def main():
         casos["Obitos"] = int(dados_gerais[0]['obitosAcumuladoN'])
         casos["Letalidade(%)"] = float((casos["Obitos"] * 100) / casos["Confirmados"])
         # Pega hora em UTC e converte
-        utc_zone = dateutil.tz.tzutc()
-        local_zone = dateutil.tz.tzlocal()
+        utc_zone = tz.tzutc()
+        local_zone = tz.tzlocal()
         utc = datetime.datetime.strptime(dados_gerais[0]['updated_at'], '%Y-%m-%dT%H:%M:%S.%fZ')
         utc = utc.replace(tzinfo=utc_zone)
         # Converte para zona local
