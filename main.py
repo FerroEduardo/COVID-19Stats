@@ -4,7 +4,6 @@ import shutil
 import requests
 import datetime
 from dateutil import tz
-import traceback
 import plotly.graph_objects as go
 
 
@@ -218,12 +217,9 @@ def main():
     url = "https://covid.saude.gov.br/"
     pastaAtual = os.getcwd()
     try:
-        application_id_request = 'unAFkcaNDeXajurGB7LChj8SgQYS2ptm'
-
         # Captura dados gerais da página
         print("[LOG]Capturando dados gerais.")
-        dados_gerais = requests.get('https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalSintese',
-                                    headers={"X-Parse-Application-Id": application_id_request}).json()
+        dados_gerais = requests.get('https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalSinteseSep').json()
         casos = dict()
         casos["Confirmados"] = int(dados_gerais[0]['casosAcumuladoN'])
         casos["Obitos"] = int(dados_gerais[0]['obitosAcumuladoN'])
@@ -249,7 +245,7 @@ def main():
 
         regioes = []
         print("[LOG]Dados das regiões sendo extraídos.")
-        dados_regioes = dados_gerais
+        dados_regioes = dados_gerais[1]
         modeloRegiao = "Nome: {}, Casos confirmados: {}({:.2f}%)"
         for i in range(1, 6):
             dado = dict()
@@ -267,16 +263,15 @@ def main():
         estados = []
         # Captura dados dos estados
         print("[LOG]Dados dos estados sendo extraídos.")
-        # dados_estados = dados_regioes
-        for regiao in dados_regioes[1:6]:
-            for estado in regiao['listaMunicipios']:
-                dado = dict()
-                dado['Nome'] = obterNomeEstadoPorUF(estado['_id'])
-                dado['Casos'] = int(estado['casosAcumulado'])
-                dado['PorcentagemDeCasosRelacional'] = float((dado['Casos'] / casos["Confirmados"]) * 100.0)
-                dado['Obitos'] = int(estado['obitosAcumulado'])
-                dado['Letalidade'] = float((dado['Obitos'] * 100) / dado['Casos'])
-                estados.append(dado)
+        dados_estados = requests.get('https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalEstado').json()
+        for estado in dados_estados:
+            dado = dict()
+            dado['Nome'] = obterNomeEstadoPorUF(estado['_id'])
+            dado['Casos'] = int(estado['casosAcumulado'])
+            dado['PorcentagemDeCasosRelacional'] = float((dado['Casos'] / casos["Confirmados"]) * 100.0)
+            dado['Obitos'] = int(estado['obitosAcumulado'])
+            dado['Letalidade'] = float((dado['Obitos'] * 100) / dado['Casos'])
+            estados.append(dado)
         print("[LOG]Dados dos estados extraídos.")
         entrada = input("Deseja ver as estatísticas por estados?(sim/nao/todos) ")
         while entrada != "nao":
@@ -424,6 +419,8 @@ def main():
             'https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalRegiaoUf').json()
 
         for regiao in regioes:
+            if regiao['Nome'] == 'Brasil':
+                continue
             nome_regiao = regiao['Nome']
             for estado in casos_detalhados_estados[nome_regiao]:
                 dia_anterior = dict()
